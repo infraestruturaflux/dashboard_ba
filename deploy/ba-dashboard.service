@@ -1,0 +1,15 @@
+[Unit]
+Description=BA Dashboard — FastAPI Backend
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/opt/ba-dashboard/backend
+Environment="PATH=/opt/ba-dashboard/venv/bin"
+ExecStart=/opt/ba-dashboard/venv/bin/uvicorn main:app --host 127.0.0.1 --port 8001 --workers 2
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
