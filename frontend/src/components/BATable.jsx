@@ -369,8 +369,8 @@ function Row({ ba, toast, onOpenTimeline, selected, onToggle }) {
 }
 
 // ── Tabela principal ──────────────────────────
-export function BATable({ bas, toast }) {
-  const [sortState, setSortState] = useState({ coluna: "data_abertura", direcao: "desc" });
+export function BATable({ bas, toast, defaultSort }) {
+  const [sortState, setSortState] = useState(defaultSort ?? { coluna: "data_abertura", direcao: "asc" });
   const [drawerBA, setDrawerBA]   = useState(null);
   const [selected, setSelected]   = useState(new Set());
 

@@ -3,11 +3,11 @@ import { Badge } from "@/components/ui/badge";
 const STATUS_CONFIG = {
   "Aberto":                  { variant: "info",        label: "Aberto" },
   "Transporte":              { variant: "secondary",   label: "Transporte" },
-  "Em validação":            { variant: "warning",     label: "Em validação" },
+  "Em validação":            { variant: "success",     label: "Em validação" },
   "Escalonado":              { variant: "destructive", label: "Escalonado" },
   "Escalonado Transportes":  { variant: "purple",      label: "Escalonado Transp." },
   "Devolvido":               { variant: "warning",     label: "Devolvido" },
-  "Engenharia":              { variant: "purple",      label: "Engenharia" },
+  "Engenharia":              { variant: "orange",      label: "Engenharia" },
   "Resolvido e fechado":     { variant: "success",     label: "Resolvido" },
 };
 

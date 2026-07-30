@@ -51,8 +51,14 @@ export function StatusUpdateDialog({ ba, toast }) {
 
   function handleStatusChange(v) {
     setNovoStatus(v);
-    if (!STATUS_TRANSPORTE.includes(v)) { setOpTransporte(""); setNrBATrans(""); setOutraOp(""); }
-    else setDataTrans(format(new Date(), "yyyy-MM-dd'T'HH:mm"));
+    if (!STATUS_TRANSPORTE.includes(v)) {
+      setOpTransporte(""); setNrBATrans(""); setOutraOp("");
+    } else {
+      // Herda dados do transporte anterior se disponíveis
+      if (!opTransporte && ba.operadora_transporte) setOpTransporte(ba.operadora_transporte);
+      if (!nrBATransporte && ba.numero_ba_transporte) setNrBATrans(ba.numero_ba_transporte);
+      setDataTrans(format(new Date(), "yyyy-MM-dd'T'HH:mm"));
+    }
   }
 
   return (

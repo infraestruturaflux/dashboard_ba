@@ -25,11 +25,11 @@ import { cn } from "@/lib/utils";
 const CORES_STATUS = {
   "Aberto":                 "#38bdf8",
   "Transporte":             "#94a3b8",
-  "Em validação":           "#f59e0b",
+  "Em validação":           "#10b981",
   "Escalonado":             "#ef4444",
   "Escalonado Transportes": "#a855f7",
   "Devolvido":              "#f59e0b",
-  "Engenharia":             "#8b5cf6",
+  "Engenharia":             "#f97316",
   "Resolvido e fechado":    "#10b981",
 };
 

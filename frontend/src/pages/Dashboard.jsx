@@ -28,11 +28,16 @@ function StatCard({ icon: Icon, label, value, color }) {
 
 // ── Filtro aplicado sobre a lista ─────────────
 function aplicarFiltros(bas, filtros) {
+  const busca = filtros.busca?.toLowerCase().trim();
   return bas.filter((b) => {
     if (filtros.operadora  && b.operadora      !== filtros.operadora)  return false;
     if (filtros.cgp        && b.cgp            !== filtros.cgp)        return false;
     if (filtros.status     && b.status         !== filtros.status)     return false;
     if (filtros.responsavel && b.pessoa_chamado !== filtros.responsavel) return false;
+    if (busca) {
+      const campos = [b.numero_ba, b.status, b.ticket_zammad, b.cliente, b.numero_origem, b.numero_destino, b.numero_ba_ofendida, b.numero_ba_transporte, b.pessoa_chamado, b.responsavel_abertura];
+      if (!campos.some((c) => c?.toLowerCase().includes(busca))) return false;
+    }
     return true;
   });
 }
@@ -40,7 +45,7 @@ function aplicarFiltros(bas, filtros) {
 // ── Dashboard ─────────────────────────────────
 export function Dashboard({ toast }) {
   const { isAdmin } = useAuth();
-  const [filtros, setFiltros] = useState({ operadora: "", cgp: "", status: "", responsavel: "" });
+  const [filtros, setFiltros] = useState({ operadora: "", cgp: "", status: "", responsavel: "", busca: "" });
 
   const { data: bas = [], isLoading, refetch, isFetching } = useQuery({
     queryKey: ["bas"],
@@ -199,7 +204,7 @@ export function Dashboard({ toast }) {
                 </p>
               </div>
             ) : (
-              <BATable bas={basGestorFiltrados} toast={toast} />
+              <BATable bas={basGestorFiltrados} toast={toast} defaultSort={{ coluna: "sla_percentual", direcao: "desc" }} />
             )}
           </TabsContent>}
         </Tabs>

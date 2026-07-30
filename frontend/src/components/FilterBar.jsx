@@ -1,8 +1,9 @@
 import { useMemo } from "react";
-import { X } from "lucide-react";
+import { X, Search } from "lucide-react";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
 /**
@@ -25,7 +26,7 @@ export function FilterBar({ bas, filtros, onChange }) {
     return Array.from(s).sort();
   }, [bas]);
 
-  const temFiltro = filtros.operadora || filtros.cgp || filtros.status || filtros.responsavel;
+  const temFiltro = filtros.operadora || filtros.cgp || filtros.status || filtros.responsavel || filtros.busca;
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -93,13 +94,24 @@ export function FilterBar({ bas, filtros, onChange }) {
         </SelectContent>
       </Select>
 
+      {/* Busca livre */}
+      <div className="relative">
+        <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground pointer-events-none" />
+        <Input
+          placeholder="Buscar BA, status, Zammad…"
+          value={filtros.busca || ""}
+          onChange={(e) => onChange({ ...filtros, busca: e.target.value })}
+          className="h-8 w-[200px] text-xs pl-6"
+        />
+      </div>
+
       {/* Limpar filtros */}
       {temFiltro && (
         <Button
           variant="ghost"
           size="sm"
           className="h-8 text-xs text-muted-foreground"
-          onClick={() => onChange({ operadora: "", cgp: "", status: "", responsavel: "" })}
+          onClick={() => onChange({ operadora: "", cgp: "", status: "", responsavel: "", busca: "" })}
         >
           <X className="w-3 h-3" />
           Limpar

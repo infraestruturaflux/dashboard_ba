@@ -108,13 +108,16 @@ def listar_bas(db: Session = Depends(get_db)):
 
 @router.get("/gestor", response_model=List[BAResponse])
 def listar_bas_gestor(db: Session = Depends(get_db)):
+    # Retorna todos os BAs ativos com SLA estourado
+    status_ativos = [s for s in StatusBA if s != StatusBA.RESOLVIDO]
     bas = (
         _load(db)
-        .filter(BA.status.in_(STATUSES_GESTOR))
-        .order_by(BA.data_abertura.desc())
+        .filter(BA.status.in_(status_ativos))
+        .order_by(BA.data_abertura.asc())
         .all()
     )
-    return [_enrich(b) for b in bas]
+    enriquecidos = [_enrich(b) for b in bas]
+    return [b for b in enriquecidos if b.get("sla_estourado")]
 
 
 # ⚠️  bulk-update DEVE ficar antes de /{ba_id} para não ser interpretado como ID
