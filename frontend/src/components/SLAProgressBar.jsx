@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
  * Cores: verde (0–50%) → amarelo (50–80%) → laranja (80–100%) → vermelho pulsante (>100%)
  */
 export function SLAProgressBar({ tempoAberto, slaLimite, slaEstourado, slaPercentual, status }) {
-  const resolvido = status === "Resolvido e fechado";
+  const resolvido = status === "Resolvido e fechado" || status === "Em validação" || status === "Devolvido";
 
   const horas   = Math.floor(tempoAberto);
   const minutos = Math.round((tempoAberto - horas) * 60);
@@ -41,7 +41,7 @@ export function SLAProgressBar({ tempoAberto, slaLimite, slaEstourado, slaPercen
       {/* Barra de progresso */}
       <div className="relative h-5 w-full rounded bg-secondary overflow-hidden">
         <div
-          className={cn("h-full rounded transition-all duration-500", barColor, slaEstourado && "animate-pulse")}
+          className={cn("h-full rounded transition-all duration-500", barColor, slaEstourado && !resolvido && "animate-pulse")}
           style={{ width: `${pct}%` }}
         />
         {/* Texto sobre a barra */}
@@ -59,7 +59,7 @@ export function SLAProgressBar({ tempoAberto, slaLimite, slaEstourado, slaPercen
 
       {/* Legenda: tempo / limite */}
       <div className="flex justify-between text-[10px] text-muted-foreground px-0.5">
-        <span>{resolvido ? "Resolvido" : slaEstourado ? "SLA estourado" : `${Math.round(slaPercentual)}%`}</span>
+        <span>{status === "Em validação" ? "Em validação" : status === "Devolvido" ? "Devolvido" : resolvido ? "Resolvido" : slaEstourado ? "SLA estourado" : `${Math.round(slaPercentual)}%`}</span>
         <span>/ {slaLimite}h</span>
       </div>
     </div>

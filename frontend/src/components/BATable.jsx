@@ -111,7 +111,7 @@ function Th({ label, coluna, sortState, onSort, className, children }) {
   return (
     <th
       className={cn(
-        "px-3 py-3 text-left text-xs uppercase text-muted-foreground tracking-wider select-none whitespace-nowrap",
+        "px-2 py-2 text-left text-[10px] uppercase text-muted-foreground tracking-wider select-none whitespace-nowrap",
         clicavel && "cursor-pointer hover:text-foreground transition-colors",
         className
       )}
@@ -127,9 +127,9 @@ function Th({ label, coluna, sortState, onSort, className, children }) {
 
 // ── Célula com botão de cópia ─────────────────
 function CopyCell({ valor, copyKey, copiado, copiar, className }) {
-  if (!valor) return <td className={cn("px-3 py-3 text-xs text-muted-foreground", className)}>—</td>;
+  if (!valor) return <td className={cn("px-2 py-2 text-xs text-muted-foreground", className)}>—</td>;
   return (
-    <td className={cn("px-3 py-3 text-xs text-muted-foreground group", className)}>
+    <td className={cn("px-2 py-2 text-xs text-muted-foreground group", className)}>
       <div className="flex items-center gap-1.5">
         <span className="truncate">{valor}</span>
         <button
@@ -159,7 +159,7 @@ function Row({ ba, toast, onOpenTimeline, selected, onToggle }) {
       )}
     >
       {/* Checkbox */}
-      <td className="px-3 py-3 w-10">
+      <td className="px-2 py-2 w-10">
         <input
           type="checkbox"
           checked={selected}
@@ -169,17 +169,17 @@ function Row({ ba, toast, onOpenTimeline, selected, onToggle }) {
       </td>
 
       {/* Nº BA */}
-      <td className="px-3 py-3 font-mono font-bold text-primary text-sm whitespace-nowrap">
+      <td className="px-2 py-2 font-mono font-bold text-primary text-xs whitespace-nowrap">
         {ba.numero_ba}
       </td>
 
       {/* Cliente */}
-      <td className="px-3 py-3 text-sm max-w-[130px]">
+      <td className="px-2 py-2 text-xs max-w-[110px]">
         <span className="truncate block" title={ba.cliente}>{ba.cliente}</span>
       </td>
 
       {/* Operadora */}
-      <td className="px-3 py-3 whitespace-nowrap">
+      <td className="px-2 py-2 whitespace-nowrap">
         {(() => {
           const { bg, text } = getOperadoraClasses(ba.operadora);
           return (
@@ -191,7 +191,7 @@ function Row({ ba, toast, onOpenTimeline, selected, onToggle }) {
       </td>
 
       {/* Status + Operadora Transporte */}
-      <td className="px-3 py-3">
+      <td className="px-2 py-2">
         <div className="flex flex-col gap-1">
           <StatusBadge status={ba.status} />
           {ba.operadora_transporte && (
@@ -202,6 +202,32 @@ function Row({ ba, toast, onOpenTimeline, selected, onToggle }) {
                 <span className="font-mono text-amber-300">— {ba.numero_ba_transporte}</span>
               )}
             </span>
+          )}
+          {ba.tempo_devolucao_horas != null && (
+            <div className="mt-1">
+              <div className="text-[9px] text-orange-400 mb-0.5">SLA Devolução (24h)</div>
+              <div className="relative h-3.5 w-full rounded bg-secondary overflow-hidden min-w-[90px]">
+                <div
+                  className={cn(
+                    "h-full rounded transition-all duration-500",
+                    ba.sla_devolucao_estourado ? "bg-red-500 animate-pulse" :
+                    ba.sla_devolucao_percentual >= 80 ? "bg-orange-500" :
+                    ba.sla_devolucao_percentual >= 50 ? "bg-amber-400" : "bg-emerald-500"
+                  )}
+                  style={{ width: `${Math.min(ba.sla_devolucao_percentual, 100)}%` }}
+                />
+                <div className={cn(
+                  "absolute inset-0 flex items-center justify-center text-[9px] font-semibold",
+                  ba.sla_devolucao_estourado ? "text-red-300" : "text-white"
+                )}>
+                  {(() => {
+                    const h = Math.floor(ba.tempo_devolucao_horas);
+                    const m = Math.round((ba.tempo_devolucao_horas - h) * 60);
+                    return h > 0 ? `${h}h ${m}m` : `${m}m`;
+                  })()}
+                </div>
+              </div>
+            </div>
           )}
           {ba.tempo_transporte_horas != null && (
             <div className="mt-1">
@@ -233,14 +259,14 @@ function Row({ ba, toast, onOpenTimeline, selected, onToggle }) {
       </td>
 
       {/* Prioridade */}
-      <td className="px-3 py-3">
+      <td className="px-2 py-2">
         <Badge variant={ba.prioridade === "Urgente" ? "destructive" : "secondary"}>
           {ba.prioridade}
         </Badge>
       </td>
 
       {/* SLA */}
-      <td className="px-3 py-3">
+      <td className="px-2 py-2">
         <SLAProgressBar
           tempoAberto={ba.tempo_aberto_horas}
           slaLimite={ba.sla_limite_horas}
@@ -251,7 +277,7 @@ function Row({ ba, toast, onOpenTimeline, selected, onToggle }) {
       </td>
 
       {/* Abertura */}
-      <td className="px-3 py-3 text-xs text-muted-foreground whitespace-nowrap">
+      <td className="px-2 py-2 text-xs text-muted-foreground whitespace-nowrap">
         {format(utc(ba.data_abertura), "dd/MM/yy HH:mm", { locale: ptBR })}
       </td>
 
@@ -264,7 +290,7 @@ function Row({ ba, toast, onOpenTimeline, selected, onToggle }) {
       />
 
       {/* Nº Origem → Destino + Portabilidade */}
-      <td className="px-3 py-3 text-xs text-muted-foreground max-w-[200px] group">
+      <td className="px-2 py-2 text-xs text-muted-foreground max-w-[200px] group">
         <div className="min-w-0 space-y-1">
           {/* Origem */}
           <div className="flex items-center gap-1">
@@ -319,7 +345,7 @@ function Row({ ba, toast, onOpenTimeline, selected, onToggle }) {
       </td>
 
       {/* Nº BA Ofendida */}
-      <td className="px-3 py-3 text-xs">
+      <td className="px-2 py-2 text-xs">
         {ba.numero_ba_ofendida
           ? <span className="font-mono text-amber-400">{ba.numero_ba_ofendida}</span>
           : <span className="text-muted-foreground/40">—</span>
@@ -327,17 +353,17 @@ function Row({ ba, toast, onOpenTimeline, selected, onToggle }) {
       </td>
 
       {/* Responsável BA */}
-      <td className="px-3 py-3 text-xs text-muted-foreground whitespace-nowrap">
+      <td className="px-2 py-2 text-xs text-muted-foreground whitespace-nowrap">
         {ba.responsavel_abertura || <span className="opacity-40">—</span>}
       </td>
 
       {/* Responsável Chamado */}
-      <td className="px-3 py-3 text-xs text-muted-foreground whitespace-nowrap">
+      <td className="px-2 py-2 text-xs text-muted-foreground whitespace-nowrap">
         {ba.pessoa_chamado || <span className="opacity-40">—</span>}
       </td>
 
       {/* Última nota */}
-      <td className="px-3 py-3 max-w-[180px]">
+      <td className="px-2 py-2 max-w-[180px]">
         <button
           onClick={() => onOpenTimeline(ba)}
           className="group/nota flex items-start gap-1.5 text-left hover:text-foreground transition-colors w-full"
@@ -358,7 +384,7 @@ function Row({ ba, toast, onOpenTimeline, selected, onToggle }) {
       </td>
 
       {/* Ações */}
-      <td className="px-3 py-3">
+      <td className="px-2 py-2">
         <div className="flex items-center justify-end gap-1">
           <StatusUpdateDialog ba={ba} toast={toast} />
           <DeleteButton ba={ba} toast={toast} />
@@ -427,7 +453,7 @@ export function BATable({ bas, toast, defaultSort }) {
           <thead className="bg-secondary">
             <tr>
               {/* Checkbox "Select all" */}
-              <th className="px-3 py-3 w-10">
+              <th className="px-2 py-2 w-10">
                 <input
                   type="checkbox"
                   checked={allChecked}
@@ -441,7 +467,7 @@ export function BATable({ bas, toast, defaultSort }) {
               <Th label="Operadora"        coluna="operadora"          {...thProps} />
               <Th label="Status"           coluna="status"             {...thProps} />
               <Th label="Prioridade"       coluna="prioridade"         {...thProps} />
-              <Th label="Tempo / SLA"      coluna="tempo_aberto_horas" {...thProps} className="min-w-[140px]" />
+              <Th label="Tempo / SLA"      coluna="tempo_aberto_horas" {...thProps} className="min-w-[110px]" />
               <Th label="Abertura"         coluna="data_abertura"      {...thProps} />
               <Th label="Zammad"                                        {...thProps} />
               <Th label="Nº Origem → Destino"                           {...thProps} />

@@ -144,6 +144,7 @@ class BAResponse(BaseModel):
     operadora_transporte:  Optional[str]
     numero_ba_transporte:  Optional[str]
     data_transporte:       Optional[datetime]
+    data_devolucao:        Optional[datetime]
     resolvido_em:          Optional[datetime]
     tempo_resolucao_horas: Optional[float]
     criado_em:             datetime
@@ -159,6 +160,11 @@ class BAResponse(BaseModel):
     tempo_transporte_horas:    Optional[float] = None
     sla_transporte_estourado:  Optional[bool]  = None
     sla_transporte_percentual: Optional[float] = None
+
+    # SLA de devolução — 24h fixo a partir de data_devolucao
+    tempo_devolucao_horas:    Optional[float] = None
+    sla_devolucao_estourado:  Optional[bool]  = None
+    sla_devolucao_percentual: Optional[float] = None
 
     # Agregados de relacionamentos
     ultima_nota:           Optional[str] = None

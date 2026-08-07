@@ -37,6 +37,12 @@ def _enrich(ba: BA) -> dict:
     if ultima_nota and len(ultima_nota) > 80:
         ultima_nota = ultima_nota[:77] + "..."
 
+    # Congela SLA para Em validação e Devolvido
+    if ba.status in {StatusBA.EM_VALIDACAO, StatusBA.DEVOLVIDO} and ba.tempo_resolucao_horas is not None:
+        delta_horas = ba.tempo_resolucao_horas
+        estourado   = False
+        percentual  = min(round((delta_horas / limite) * 100, 1), 999)
+
     # SLA de transporte
     sla_transp = {}
     if ba.data_transporte:
@@ -50,6 +56,19 @@ def _enrich(ba: BA) -> dict:
             "sla_transporte_percentual": min(round((horas_transp / limite) * 100, 1), 999),
         }
 
+    # SLA de devolução — sempre 24h fixo
+    sla_devolucao = {}
+    if ba.data_devolucao:
+        dd = ba.data_devolucao
+        if dd.tzinfo is None:
+            dd = dd.replace(tzinfo=timezone.utc)
+        horas_dev = (agora - dd).total_seconds() / 3600
+        sla_devolucao = {
+            "tempo_devolucao_horas":    round(horas_dev, 2),
+            "sla_devolucao_estourado":  horas_dev >= 24,
+            "sla_devolucao_percentual": min(round((horas_dev / 24) * 100, 1), 999),
+        }
+
     return {
         **{c.name: getattr(ba, c.name) for c in BA.__table__.columns},
         "tempo_aberto_horas": round(delta_horas, 2),
@@ -60,6 +79,7 @@ def _enrich(ba: BA) -> dict:
         "total_notas":        len(ba.historico),
         "total_anexos":       len(ba.anexos),
         **sla_transp,
+        **sla_devolucao,
     }
 
 
@@ -108,8 +128,8 @@ def listar_bas(db: Session = Depends(get_db)):
 
 @router.get("/gestor", response_model=List[BAResponse])
 def listar_bas_gestor(db: Session = Depends(get_db)):
-    # Retorna todos os BAs ativos com SLA estourado
-    status_ativos = [s for s in StatusBA if s != StatusBA.RESOLVIDO]
+    # Retorna BAs ativos (exceto Resolvido e Em validação) com SLA estourado
+    status_ativos = [s for s in StatusBA if s not in {StatusBA.RESOLVIDO, StatusBA.EM_VALIDACAO}]
     bas = (
         _load(db)
         .filter(BA.status.in_(status_ativos))
@@ -133,14 +153,16 @@ def bulk_update(payload: BulkUpdatePayload, db: Session = Depends(get_db)):
     if not bas:
         raise HTTPException(status_code=404, detail="Nenhum BA encontrado com os IDs informados.")
 
+    STATUSES_FREEZE = {StatusBA.RESOLVIDO, StatusBA.EM_VALIDACAO, StatusBA.DEVOLVIDO}
     for ba in bas:
         # Atualiza status se fornecido
         if payload.status is not None:
             novo = payload.status
+            status_anterior = ba.status
 
-            if novo == StatusBA.RESOLVIDO and ba.status != StatusBA.RESOLVIDO:
+            if novo in STATUSES_FREEZE and ba.status not in STATUSES_FREEZE:
                 _freeze_resolve(ba, agora)
-            elif ba.status == StatusBA.RESOLVIDO and novo != StatusBA.RESOLVIDO:
+            elif ba.status in STATUSES_FREEZE and novo not in STATUSES_FREEZE:
                 _unfreeze(ba)
 
             em_transp_antes = ba.status in STATUSES_TRANSPORTE
@@ -155,6 +177,18 @@ def bulk_update(payload: BulkUpdatePayload, db: Session = Depends(get_db)):
                 ba.operadora_transporte = None
                 ba.numero_ba_transporte = None
                 ba.data_transporte      = None
+
+            if novo == StatusBA.DEVOLVIDO and ba.data_devolucao is None:
+                ba.data_devolucao = agora
+            elif novo != StatusBA.DEVOLVIDO:
+                ba.data_devolucao = None
+
+            if novo != status_anterior:
+                db.add(HistoricoBA(
+                    ba_id=ba.id,
+                    texto=f"Status alterado: {status_anterior.value} → {novo.value}",
+                    autor="Sistema",
+                ))
 
         ba.atualizado_em = agora
 
@@ -199,14 +233,17 @@ def atualizar_status(ba_id: int, payload: BAUpdateStatus, db: Session = Depends(
         raise HTTPException(status_code=404, detail="BA não encontrado.")
 
     agora = datetime.now(timezone.utc)
+    status_anterior = ba.status
 
-    if payload.status == StatusBA.RESOLVIDO and ba.status != StatusBA.RESOLVIDO:
+    STATUSES_FREEZE = {StatusBA.RESOLVIDO, StatusBA.EM_VALIDACAO, StatusBA.DEVOLVIDO}
+    if payload.status in STATUSES_FREEZE and ba.status not in STATUSES_FREEZE:
         _freeze_resolve(ba, agora)
-    elif ba.status == StatusBA.RESOLVIDO and payload.status != StatusBA.RESOLVIDO:
+    elif ba.status in STATUSES_FREEZE and payload.status not in STATUSES_FREEZE:
         _unfreeze(ba)
 
     em_transporte_antes = ba.status in STATUSES_TRANSPORTE
     ba.status = payload.status
+
     if payload.status in STATUSES_TRANSPORTE:
         ba.operadora_transporte = payload.operadora_transporte
         ba.numero_ba_transporte = payload.numero_ba_transporte
@@ -216,6 +253,21 @@ def atualizar_status(ba_id: int, payload: BAUpdateStatus, db: Session = Depends(
         ba.operadora_transporte = None
         ba.numero_ba_transporte = None
         ba.data_transporte      = None
+
+    if payload.status == StatusBA.DEVOLVIDO and ba.data_devolucao is None:
+        ba.data_devolucao = agora
+    elif payload.status != StatusBA.DEVOLVIDO:
+        ba.data_devolucao = None
+
+    # Log automático de mudança de status
+    if payload.status != status_anterior:
+        log = HistoricoBA(
+            ba_id=ba.id,
+            texto=f"Status alterado: {status_anterior.value} → {payload.status.value}",
+            autor="Sistema",
+        )
+        db.add(log)
+
     ba.atualizado_em = agora
     db.commit()
     ba = _load(db).filter(BA.id == ba_id).one()

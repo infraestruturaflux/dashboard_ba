@@ -42,3 +42,14 @@ def adicionar_nota(ba_id: int, payload: HistoricoCreate, db: Session = Depends(g
     db.commit()
     db.refresh(nota)
     return nota
+
+
+@router.delete("/{nota_id}", status_code=204)
+def deletar_nota(ba_id: int, nota_id: int, db: Session = Depends(get_db)):
+    """Remove uma entrada do histórico (somente admin)."""
+    _get_ba_or_404(ba_id, db)
+    nota = db.query(HistoricoBA).filter(HistoricoBA.id == nota_id, HistoricoBA.ba_id == ba_id).first()
+    if not nota:
+        raise HTTPException(status_code=404, detail="Nota não encontrada.")
+    db.delete(nota)
+    db.commit()

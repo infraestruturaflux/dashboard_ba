@@ -9,12 +9,13 @@ import {
 } from "lucide-react";
 
 import {
-  fetchHistorico, adicionarNota,
+  fetchHistorico, adicionarNota, deletarNota,
   fetchAnexos, uploadAnexo, deletarAnexo, urlDownloadAnexo,
 } from "@/api/bas";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { StatusBadge } from "@/components/StatusBadge";
+import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
 
 // ── Formato de bytes legível ──────────────────
@@ -27,8 +28,19 @@ function formatBytes(bytes) {
 // ── Aba: Histórico ────────────────────────────
 function TabHistorico({ ba, toast }) {
   const qc      = useQueryClient();
+  const { isAdmin } = useAuth();
   const [texto, setTexto]   = useState("");
   const [autor, setAutor]   = useState("");
+
+  const deleteMutation = useMutation({
+    mutationFn: (notaId) => deletarNota(ba.id, notaId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["historico", ba.id] });
+      qc.invalidateQueries({ queryKey: ["bas"] });
+      toast({ title: "Entrada removida." });
+    },
+    onError: () => toast({ title: "Erro ao remover.", variant: "destructive" }),
+  });
 
   const { data: historico = [], isLoading } = useQuery({
     queryKey: ["historico", ba.id],
@@ -77,6 +89,15 @@ function TabHistorico({ ba, toast }) {
                 <span className="text-[11px] text-muted-foreground">
                   {format(utc(nota.criado_em), "dd/MM/yy 'às' HH:mm", { locale: ptBR })}
                 </span>
+                {isAdmin && (
+                  <button
+                    title="Excluir entrada"
+                    onClick={() => deleteMutation.mutate(nota.id)}
+                    className="ml-auto p-0.5 rounded hover:bg-destructive/20 text-muted-foreground/40 hover:text-destructive transition-colors"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                )}
               </div>
               <p className="text-sm leading-relaxed whitespace-pre-wrap bg-secondary rounded-md px-3 py-2">
                 {nota.texto}

@@ -63,6 +63,7 @@ class BA(Base):
     operadora_transporte:  Mapped[str | None]   = mapped_column(String(100), nullable=True)
     numero_ba_transporte:  Mapped[str | None]   = mapped_column(String(50),  nullable=True)
     data_transporte:       Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    data_devolucao:        Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Campos de resolução — preenchidos ao fechar o BA
     resolvido_em:           Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

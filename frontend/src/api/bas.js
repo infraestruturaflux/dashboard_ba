@@ -19,6 +19,9 @@ export const fetchHistorico = (baId) =>
 export const adicionarNota = (baId, texto, autor = "") =>
   api.post(`/bas/${baId}/historico/`, { texto, autor }).then((r) => r.data);
 
+export const deletarNota = (baId, notaId) =>
+  api.delete(`/bas/${baId}/historico/${notaId}`).then((r) => r.data);
+
 // ── Anexos ───────────────────────────────────
 export const fetchAnexos = (baId) =>
   api.get(`/bas/${baId}/anexos`).then((r) => r.data);
