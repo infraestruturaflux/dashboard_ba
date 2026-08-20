@@ -20,6 +20,7 @@ class StatusBA(str, enum.Enum):
     RESOLVIDO              = "Resolvido e fechado"
     DEVOLVIDO              = "Devolvido"
     ENGENHARIA             = "Engenharia"
+    INDEVIDO               = "Indevido"
 
 
 class PrioridadeBA(str, enum.Enum):
@@ -64,6 +65,8 @@ class BA(Base):
     numero_ba_transporte:  Mapped[str | None]   = mapped_column(String(50),  nullable=True)
     data_transporte:       Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     data_devolucao:        Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    origens_extras:        Mapped[str | None]      = mapped_column(Text, nullable=True)  # JSON: [{"numero":"...","portabilidade":"..."}]
+    destinos_extras:       Mapped[str | None]      = mapped_column(Text, nullable=True)  # JSON: [{"numero":"...","portabilidade":"..."}]
 
     # Campos de resolução — preenchidos ao fechar o BA
     resolvido_em:           Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

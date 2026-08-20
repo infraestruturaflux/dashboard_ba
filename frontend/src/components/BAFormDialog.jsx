@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { PlusCircle, Truck } from "lucide-react";
+import { PlusCircle, Truck, Plus, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 
 import { criarBA } from "@/api/bas";
@@ -19,7 +19,13 @@ import {
 
 const STATUS_OPTIONS = [
   "Aberto", "Transporte", "Em validação",
-  "Escalonado", "Escalonado Transportes", "Devolvido", "Engenharia", "Resolvido e fechado",
+  "Escalonado", "Escalonado Transportes", "Devolvido", "Engenharia", "Indevido", "Resolvido e fechado",
+];
+
+const PORTABILIDADE_OPTIONS = [
+  "NÃO PORTADO", "PORTADO",
+  "CNG NÃO PORTADO", "CNG PORTADO",
+  "MIGRADO NÃO PORTADO", "PTO",
 ];
 const OPERADORAS_TRANSPORTE = ["Oi", "Vivo", "TIM", "Claro", "Algar", "Outra"];
 const STATUS_TRANSPORTE     = ["Transporte", "Escalonado Transportes"];
@@ -55,6 +61,8 @@ export function BAFormDialog({ toast }) {
   const [cgpSel, setCgpSel]             = useState("");
   const [portOrigem,  setPortOrigem]    = useState("");
   const [portDestino, setPortDestino]   = useState("");
+  const [origensExtras,  setOrigensExtras]  = useState([]);  // [{numero:"", portabilidade:""}]
+  const [destinosExtras, setDestinosExtras] = useState([]);  // [{numero:"", portabilidade:""}]
   const [prioridadeSel, setPriorid]     = useState("Normal");
   const [chamadoCom, setChamadoCom]               = useState("");
   const [pessoaChamado, setPessoaChamado]         = useState("");
@@ -89,6 +97,8 @@ export function BAFormDialog({ toast }) {
       setPriorid("Normal");
       setPortOrigem("");
       setPortDestino("");
+      setOrigensExtras([]);
+      setDestinosExtras([]);
       setChamadoCom("");
       setPessoaChamado("");
       setRespAbertura("");
@@ -139,6 +149,12 @@ export function BAFormDialog({ toast }) {
       numero_ba_transporte:  precisaTransporte ? nrBATransporte.trim() : null,
       portabilidade_origem:  portOrigem  || null,
       portabilidade_destino: portDestino || null,
+      origens_extras: origensExtras.filter(o => o.numero.trim()).length > 0
+        ? JSON.stringify(origensExtras.filter(o => o.numero.trim()))
+        : null,
+      destinos_extras: destinosExtras.filter(o => o.numero.trim()).length > 0
+        ? JSON.stringify(destinosExtras.filter(o => o.numero.trim()))
+        : null,
       chamado_com:           chamadoCom.trim() || null,
       pessoa_chamado:        pessoaChamado.trim(),
       responsavel_abertura:  responsavelAbertura.trim(),
@@ -177,6 +193,7 @@ export function BAFormDialog({ toast }) {
           </Field>
 
           {/* ── Circuito ──────────────────────────── */}
+          {/* Origem principal */}
           <Field label="Número Origem" error={errors.numero_origem}>
             <Input {...register("numero_origem", REQUIRED)} />
           </Field>
@@ -188,11 +205,64 @@ export function BAFormDialog({ toast }) {
                 <SelectValue placeholder="Selecione…" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="NÃO PORTADO">NÃO PORTADO</SelectItem>
-                <SelectItem value="PORTADO">PORTADO</SelectItem>
+                {PORTABILIDADE_OPTIONS.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
               </SelectContent>
             </Select>
             {!portOrigem && <span className="text-xs text-muted-foreground">Selecione uma opção.</span>}
+          </div>
+
+          {/* Origens extras */}
+          {origensExtras.map((o, i) => (
+            <div key={i} className="col-span-2 grid grid-cols-2 gap-2 items-end border border-border/50 rounded p-2">
+              <div className="flex flex-col gap-1">
+                <Label className="text-xs text-muted-foreground">Origem adicional {i + 2}</Label>
+                <Input
+                  placeholder="Número origem"
+                  value={o.numero}
+                  onChange={(e) => {
+                    const copy = [...origensExtras];
+                    copy[i].numero = e.target.value;
+                    setOrigensExtras(copy);
+                  }}
+                />
+              </div>
+              <div className="flex gap-2 items-end">
+                <div className="flex-1 flex flex-col gap-1">
+                  <Label className="text-xs text-muted-foreground">Portabilidade</Label>
+                  <Select
+                    value={o.portabilidade}
+                    onValueChange={(v) => {
+                      const copy = [...origensExtras];
+                      copy[i].portabilidade = v;
+                      setOrigensExtras(copy);
+                    }}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Selecione…" /></SelectTrigger>
+                    <SelectContent>
+                      {PORTABILIDADE_OPTIONS.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setOrigensExtras(origensExtras.filter((_, j) => j !== i))}
+                  className="p-2 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors mb-0.5"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ))}
+
+          {/* Botão adicionar origem */}
+          <div className="col-span-2">
+            <button
+              type="button"
+              onClick={() => setOrigensExtras([...origensExtras, { numero: "", portabilidade: "" }])}
+              className="flex items-center gap-1.5 text-xs text-primary hover:underline"
+            >
+              <Plus className="w-3.5 h-3.5" /> Adicionar outra origem
+            </button>
           </div>
 
           <Field label="Número Destino" error={errors.numero_destino}>
@@ -206,11 +276,64 @@ export function BAFormDialog({ toast }) {
                 <SelectValue placeholder="Selecione…" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="NÃO PORTADO">NÃO PORTADO</SelectItem>
-                <SelectItem value="PORTADO">PORTADO</SelectItem>
+                {PORTABILIDADE_OPTIONS.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
               </SelectContent>
             </Select>
             {!portDestino && <span className="text-xs text-muted-foreground">Selecione uma opção.</span>}
+          </div>
+
+          {/* Destinos extras */}
+          {destinosExtras.map((o, i) => (
+            <div key={i} className="col-span-2 grid grid-cols-2 gap-2 items-end border border-border/50 rounded p-2">
+              <div className="flex flex-col gap-1">
+                <Label className="text-xs text-muted-foreground">Destino adicional {i + 2}</Label>
+                <Input
+                  placeholder="Número destino"
+                  value={o.numero}
+                  onChange={(e) => {
+                    const copy = [...destinosExtras];
+                    copy[i].numero = e.target.value;
+                    setDestinosExtras(copy);
+                  }}
+                />
+              </div>
+              <div className="flex gap-2 items-end">
+                <div className="flex-1 flex flex-col gap-1">
+                  <Label className="text-xs text-muted-foreground">Portabilidade</Label>
+                  <Select
+                    value={o.portabilidade}
+                    onValueChange={(v) => {
+                      const copy = [...destinosExtras];
+                      copy[i].portabilidade = v;
+                      setDestinosExtras(copy);
+                    }}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Selecione…" /></SelectTrigger>
+                    <SelectContent>
+                      {PORTABILIDADE_OPTIONS.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setDestinosExtras(destinosExtras.filter((_, j) => j !== i))}
+                  className="p-2 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors mb-0.5"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ))}
+
+          {/* Botão adicionar destino */}
+          <div className="col-span-2">
+            <button
+              type="button"
+              onClick={() => setDestinosExtras([...destinosExtras, { numero: "", portabilidade: "" }])}
+              className="flex items-center gap-1.5 text-xs text-primary hover:underline"
+            >
+              <Plus className="w-3.5 h-3.5" /> Adicionar outro destino
+            </button>
           </div>
 
           {/* Nº BA Ofendida */}

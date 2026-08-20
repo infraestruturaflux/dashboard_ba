@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { RefreshCw, AlertTriangle, CheckCircle2, Clock, Activity, Archive } from "lucide-react";
+import { RefreshCw, AlertTriangle, CheckCircle2, Clock, Activity, Archive, Ban } from "lucide-react";
 
 import { fetchBAs, fetchBAsGestor } from "@/api/bas";
 import { BATable } from "@/components/BATable";
@@ -66,13 +66,20 @@ export function Dashboard({ toast }) {
   const resolvidos   = bas.filter((b) => b.status === "Resolvido e fechado").length;
 
   // Separação por estado
-  const basAtivos     = useMemo(() => bas.filter((b) => b.status !== "Resolvido e fechado"), [bas]);
+  const basAtivos     = useMemo(() => bas.filter((b) => b.status !== "Resolvido e fechado" && b.status !== "Indevido"), [bas]);
   const basResolvidos = useMemo(() => bas.filter((b) => b.status === "Resolvido e fechado"), [bas]);
+  const basIndevidos  = useMemo(() => bas.filter((b) => b.status === "Indevido"), [bas]);
+
+  // Busca global — quando busca ativa, une todos os BAs
+  const todosBas = useMemo(() => bas, [bas]);
+  const buscaAtiva = !!filtros.busca?.trim();
 
   // Filtros aplicados para exibição
-  const basFiltrados          = useMemo(() => aplicarFiltros(basAtivos,     filtros), [basAtivos,     filtros]);
-  const basGestorFiltrados    = useMemo(() => aplicarFiltros(basGestor,     filtros), [basGestor,     filtros]);
+  const basFiltrados           = useMemo(() => aplicarFiltros(basAtivos,     filtros), [basAtivos,     filtros]);
+  const basGestorFiltrados     = useMemo(() => aplicarFiltros(basGestor,     filtros), [basGestor,     filtros]);
   const basResolvidosFiltrados = useMemo(() => aplicarFiltros(basResolvidos, filtros), [basResolvidos, filtros]);
+  const basIndevidosFiltrados  = useMemo(() => aplicarFiltros(basIndevidos,  filtros), [basIndevidos,  filtros]);
+  const basGlobalFiltrados     = useMemo(() => aplicarFiltros(todosBas,      filtros), [todosBas,      filtros]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -143,11 +150,30 @@ export function Dashboard({ toast }) {
                   </span>
                 )}
               </TabsTrigger>
+              <TabsTrigger value="indevidos">
+                <Ban className="w-4 h-4" />
+                BAs Indevidos
+                {basIndevidos.length > 0 && (
+                  <span className="ml-1 bg-slate-500 text-white rounded-full text-[10px] px-1.5 py-0.5">
+                    {basIndevidos.length}
+                  </span>
+                )}
+              </TabsTrigger>
             </TabsList>
 
             {/* Filtros rápidos */}
             <FilterBar bas={bas} filtros={filtros} onChange={setFiltros} />
           </div>
+
+          {/* Busca global — quando ativa, mostra resultados de todos os BAs */}
+          {buscaAtiva && (
+            <div className="mb-4">
+              <p className="text-xs text-muted-foreground mb-2">
+                Busca global: <strong>{basGlobalFiltrados.length}</strong> resultado(s) em todos os BAs
+              </p>
+              <BATable bas={basGlobalFiltrados} toast={toast} />
+            </div>
+          )}
 
           {/* Visão NOC — apenas BAs ativos */}
           <TabsContent value="noc">
@@ -187,6 +213,22 @@ export function Dashboard({ toast }) {
                 )}
                 <BATable bas={basResolvidosFiltrados} toast={toast} />
               </>
+            )}
+          </TabsContent>
+
+          {/* BAs Indevidos */}
+          <TabsContent value="indevidos">
+            {isLoading ? (
+              <div className="text-center text-muted-foreground py-16">Carregando...</div>
+            ) : basIndevidosFiltrados.length === 0 ? (
+              <div className="text-center py-16 space-y-2">
+                <Ban className="w-10 h-10 text-slate-500 mx-auto" />
+                <p className="text-muted-foreground text-sm">
+                  {basIndevidos.length > 0 ? "Nenhum BA indevido com os filtros aplicados." : "Nenhum BA indevido ainda."}
+                </p>
+              </div>
+            ) : (
+              <BATable bas={basIndevidosFiltrados} toast={toast} />
             )}
           </TabsContent>
 

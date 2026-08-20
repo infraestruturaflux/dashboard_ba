@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
  * Cores: verde (0–50%) → amarelo (50–80%) → laranja (80–100%) → vermelho pulsante (>100%)
  */
 export function SLAProgressBar({ tempoAberto, slaLimite, slaEstourado, slaPercentual, status }) {
-  const resolvido = status === "Resolvido e fechado" || status === "Em validação" || status === "Devolvido";
+  const resolvido = ["Resolvido e fechado", "Em validação", "Devolvido", "Indevido"].includes(status);
 
   const horas   = Math.floor(tempoAberto);
   const minutos = Math.round((tempoAberto - horas) * 60);
@@ -59,7 +59,7 @@ export function SLAProgressBar({ tempoAberto, slaLimite, slaEstourado, slaPercen
 
       {/* Legenda: tempo / limite */}
       <div className="flex justify-between text-[10px] text-muted-foreground px-0.5">
-        <span>{status === "Em validação" ? "Em validação" : status === "Devolvido" ? "Devolvido" : resolvido ? "Resolvido" : slaEstourado ? "SLA estourado" : `${Math.round(slaPercentual)}%`}</span>
+        <span>{["Em validação","Devolvido","Indevido"].includes(status) ? status : resolvido ? "Resolvido" : slaEstourado ? "SLA estourado" : `${Math.round(slaPercentual)}%`}</span>
         <span>/ {slaLimite}h</span>
       </div>
     </div>

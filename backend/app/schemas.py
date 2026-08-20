@@ -65,6 +65,8 @@ class BACreate(BaseModel):
     descricao:            str           # agora obrigatório
     operadora_transporte: Optional[str] = None   # condicional — só exigido via validator
     numero_ba_transporte: Optional[str] = None   # condicional — só exigido quando há transporte
+    origens_extras:       Optional[str] = None   # JSON: origens adicionais
+    destinos_extras:      Optional[str] = None   # JSON: destinos adicionais
 
     @field_validator("numero_ba", "operadora", "numero_origem", "numero_destino",
                      "pessoa_chamado", "responsavel_abertura", "cliente",
@@ -145,6 +147,8 @@ class BAResponse(BaseModel):
     numero_ba_transporte:  Optional[str]
     data_transporte:       Optional[datetime]
     data_devolucao:        Optional[datetime]
+    origens_extras:        Optional[str]
+    destinos_extras:       Optional[str]
     resolvido_em:          Optional[datetime]
     tempo_resolucao_horas: Optional[float]
     criado_em:             datetime

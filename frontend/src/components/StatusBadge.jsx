@@ -9,6 +9,7 @@ const STATUS_CONFIG = {
   "Devolvido":               { variant: "warning",     label: "Devolvido" },
   "Engenharia":              { variant: "orange",      label: "Engenharia" },
   "Resolvido e fechado":     { variant: "success",     label: "Resolvido" },
+  "Indevido":                { variant: "secondary",   label: "Indevido" },
 };
 
 export function StatusBadge({ status }) {

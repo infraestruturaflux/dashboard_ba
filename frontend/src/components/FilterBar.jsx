@@ -72,7 +72,7 @@ export function FilterBar({ bas, filtros, onChange }) {
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="__all__">Todos os status</SelectItem>
-          {["Aberto","Transporte","Em validação","Escalonado","Escalonado Transportes","Devolvido","Engenharia","Resolvido e fechado"].map((s) => (
+          {["Aberto","Transporte","Em validação","Escalonado","Escalonado Transportes","Devolvido","Engenharia","Indevido","Resolvido e fechado"].map((s) => (
             <SelectItem key={s} value={s}>{s}</SelectItem>
           ))}
         </SelectContent>

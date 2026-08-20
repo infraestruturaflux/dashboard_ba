@@ -194,7 +194,7 @@ function Row({ ba, toast, onOpenTimeline, selected, onToggle }) {
       <td className="px-2 py-2">
         <div className="flex flex-col gap-1">
           <StatusBadge status={ba.status} />
-          {ba.operadora_transporte && (
+          {ba.operadora_transporte && ["Transporte","Escalonado Transportes"].includes(ba.status) && (
             <span className="inline-flex items-center gap-1 text-[10px] text-amber-400">
               <Truck className="w-3 h-3" />
               {ba.operadora_transporte}
@@ -229,7 +229,7 @@ function Row({ ba, toast, onOpenTimeline, selected, onToggle }) {
               </div>
             </div>
           )}
-          {ba.tempo_transporte_horas != null && (
+          {ba.tempo_transporte_horas != null && ["Transporte","Escalonado Transportes"].includes(ba.status) && (
             <div className="mt-1">
               <div className="text-[9px] text-amber-400 mb-0.5">SLA Transporte</div>
               <div className="relative h-3.5 w-full rounded bg-secondary overflow-hidden min-w-[90px]">
@@ -309,13 +309,32 @@ function Row({ ba, toast, onOpenTimeline, selected, onToggle }) {
           {ba.portabilidade_origem && (
             <span className={cn(
               "inline-block text-[10px] font-semibold px-1.5 py-0.5 rounded",
-              ba.portabilidade_origem === "PORTADO"
+              ba.portabilidade_origem?.includes("PORTADO") && !ba.portabilidade_origem?.includes("NÃO")
                 ? "bg-amber-500/20 text-amber-400"
                 : "bg-slate-500/20 text-slate-400"
             )}>
               {ba.portabilidade_origem}
             </span>
           )}
+
+          {/* Origens extras */}
+          {ba.origens_extras && (() => {
+            try {
+              return JSON.parse(ba.origens_extras).map((o, i) => (
+                <div key={i} className="flex items-center gap-1 mt-0.5">
+                  <span className="block truncate text-[10px] text-foreground/60" title={o.numero}>+ {o.numero}</span>
+                  {o.portabilidade && (
+                    <span className={cn("text-[9px] font-semibold px-1 py-0.5 rounded",
+                      o.portabilidade.includes("PORTADO") && !o.portabilidade.includes("NÃO")
+                        ? "bg-amber-500/20 text-amber-400" : "bg-slate-500/20 text-slate-400"
+                    )}>
+                      {o.portabilidade}
+                    </span>
+                  )}
+                </div>
+              ));
+            } catch { return null; }
+          })()}
 
           {/* Destino */}
           <div className="flex items-center gap-1 mt-1">
@@ -331,6 +350,23 @@ function Row({ ba, toast, onOpenTimeline, selected, onToggle }) {
                 : <Copy className="w-3 h-3" />}
             </button>
           </div>
+          {ba.destinos_extras && (() => {
+            try {
+              return JSON.parse(ba.destinos_extras).map((o, i) => (
+                <div key={i} className="flex items-center gap-1 mt-0.5">
+                  <span className="block truncate text-[10px] text-foreground/60" title={o.numero}>→ {o.numero}</span>
+                  {o.portabilidade && (
+                    <span className={cn("text-[9px] font-semibold px-1 py-0.5 rounded",
+                      o.portabilidade.includes("PORTADO") && !o.portabilidade.includes("NÃO")
+                        ? "bg-amber-500/20 text-amber-400" : "bg-slate-500/20 text-slate-400"
+                    )}>
+                      {o.portabilidade}
+                    </span>
+                  )}
+                </div>
+              ));
+            } catch { return null; }
+          })()}
           {ba.portabilidade_destino && (
             <span className={cn(
               "inline-block text-[10px] font-semibold px-1.5 py-0.5 rounded",

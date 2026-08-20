@@ -37,8 +37,8 @@ def _enrich(ba: BA) -> dict:
     if ultima_nota and len(ultima_nota) > 80:
         ultima_nota = ultima_nota[:77] + "..."
 
-    # Congela SLA para Em validação e Devolvido
-    if ba.status in {StatusBA.EM_VALIDACAO, StatusBA.DEVOLVIDO} and ba.tempo_resolucao_horas is not None:
+    # Congela SLA para Em validação, Devolvido e Indevido
+    if ba.status in {StatusBA.EM_VALIDACAO, StatusBA.DEVOLVIDO, StatusBA.INDEVIDO} and ba.tempo_resolucao_horas is not None:
         delta_horas = ba.tempo_resolucao_horas
         estourado   = False
         percentual  = min(round((delta_horas / limite) * 100, 1), 999)
@@ -128,8 +128,9 @@ def listar_bas(db: Session = Depends(get_db)):
 
 @router.get("/gestor", response_model=List[BAResponse])
 def listar_bas_gestor(db: Session = Depends(get_db)):
-    # Retorna BAs ativos (exceto Resolvido e Em validação) com SLA estourado
-    status_ativos = [s for s in StatusBA if s not in {StatusBA.RESOLVIDO, StatusBA.EM_VALIDACAO}]
+    # Retorna BAs ativos (exceto Resolvido, Em validação e Indevido) com SLA estourado ou devolução estourada
+    excluidos = {StatusBA.RESOLVIDO, StatusBA.EM_VALIDACAO, StatusBA.INDEVIDO}
+    status_ativos = [s for s in StatusBA if s not in excluidos]
     bas = (
         _load(db)
         .filter(BA.status.in_(status_ativos))
@@ -137,7 +138,7 @@ def listar_bas_gestor(db: Session = Depends(get_db)):
         .all()
     )
     enriquecidos = [_enrich(b) for b in bas]
-    return [b for b in enriquecidos if b.get("sla_estourado")]
+    return [b for b in enriquecidos if b.get("sla_estourado") or b.get("sla_devolucao_estourado")]
 
 
 # ⚠️  bulk-update DEVE ficar antes de /{ba_id} para não ser interpretado como ID
@@ -153,7 +154,7 @@ def bulk_update(payload: BulkUpdatePayload, db: Session = Depends(get_db)):
     if not bas:
         raise HTTPException(status_code=404, detail="Nenhum BA encontrado com os IDs informados.")
 
-    STATUSES_FREEZE = {StatusBA.RESOLVIDO, StatusBA.EM_VALIDACAO, StatusBA.DEVOLVIDO}
+    STATUSES_FREEZE = {StatusBA.RESOLVIDO, StatusBA.EM_VALIDACAO, StatusBA.DEVOLVIDO, StatusBA.INDEVIDO}
     for ba in bas:
         # Atualiza status se fornecido
         if payload.status is not None:
@@ -174,9 +175,8 @@ def bulk_update(payload: BulkUpdatePayload, db: Session = Depends(get_db)):
                 if not em_transp_antes:
                     ba.data_transporte = payload.data_transporte or agora
             else:
-                ba.operadora_transporte = None
-                ba.numero_ba_transporte = None
-                ba.data_transporte      = None
+                # Mantém operadora_transporte/numero_ba_transporte para histórico — apenas limpa o SLA
+                ba.data_transporte = None
 
             if novo == StatusBA.DEVOLVIDO and ba.data_devolucao is None:
                 ba.data_devolucao = agora
@@ -235,7 +235,7 @@ def atualizar_status(ba_id: int, payload: BAUpdateStatus, db: Session = Depends(
     agora = datetime.now(timezone.utc)
     status_anterior = ba.status
 
-    STATUSES_FREEZE = {StatusBA.RESOLVIDO, StatusBA.EM_VALIDACAO, StatusBA.DEVOLVIDO}
+    STATUSES_FREEZE = {StatusBA.RESOLVIDO, StatusBA.EM_VALIDACAO, StatusBA.DEVOLVIDO, StatusBA.INDEVIDO}
     if payload.status in STATUSES_FREEZE and ba.status not in STATUSES_FREEZE:
         _freeze_resolve(ba, agora)
     elif ba.status in STATUSES_FREEZE and payload.status not in STATUSES_FREEZE:
@@ -250,9 +250,8 @@ def atualizar_status(ba_id: int, payload: BAUpdateStatus, db: Session = Depends(
         if not em_transporte_antes:
             ba.data_transporte = payload.data_transporte or agora
     else:
-        ba.operadora_transporte = None
-        ba.numero_ba_transporte = None
-        ba.data_transporte      = None
+        # Mantém operadora_transporte/numero_ba_transporte para histórico — apenas limpa o SLA
+        ba.data_transporte = None
 
     if payload.status == StatusBA.DEVOLVIDO and ba.data_devolucao is None:
         ba.data_devolucao = agora
