@@ -7,7 +7,7 @@ import {
 } from "recharts";
 import {
   Activity, ArrowLeft, TrendingUp, Clock, AlertTriangle, CheckCircle2,
-  CalendarDays, X,
+  CalendarDays, X, Ban, ShieldAlert,
 } from "lucide-react";
 import {
   startOfDay, endOfDay, startOfWeek, endOfWeek,
@@ -368,13 +368,48 @@ export function Analytics() {
   const timeSeries = useMemo(() => buildTimeSeries(basFiltrados, periodo), [basFiltrados, periodo]);
 
   // Stats
-  const ativos         = basFiltrados.filter((b) => b.status !== "Resolvido e fechado");
+  const ativos         = basFiltrados.filter((b) => b.status !== "Resolvido e fechado" && b.status !== "Indevido");
   const slaEstourado   = ativos.filter((b) => b.sla_estourado).length;
   const taxaSLA        = ativos.length > 0 ? Math.round((slaEstourado / ativos.length) * 100) : 0;
   const resolvidos     = basFiltrados.filter((b) => b.tempo_resolucao_horas != null);
   const mediaResolucao = resolvidos.length > 0
     ? (resolvidos.reduce((s, b) => s + b.tempo_resolucao_horas, 0) / resolvidos.length).toFixed(1)
     : "—";
+  const indevidos      = basFiltrados.filter((b) => b.status === "Indevido");
+  const taxaIndevido   = basFiltrados.length > 0 ? Math.round((indevidos.length / basFiltrados.length) * 100) : 0;
+
+  // Tipo de BA
+  const porTipoBa = useMemo(() => {
+    const tipos = ["ENTRANTES", "ROTAS", "STIR SHAKEN"];
+    return tipos.map((tipo) => ({
+      tipo,
+      total: basFiltrados.filter((b) => b.tipo_ba === tipo).length,
+    })).filter((t) => t.total > 0);
+  }, [basFiltrados]);
+
+  const CORES_TIPO = { "ENTRANTES": "#38bdf8", "ROTAS": "#10b981", "STIR SHAKEN": "#a855f7" };
+
+  // Por tipo por operadora
+  const stirShakenPorOperadora = useMemo(() => {
+    const stir = basFiltrados.filter((b) => b.tipo_ba === "STIR SHAKEN");
+    return Object.entries(agrupar(stir, "operadora"))
+      .map(([operadora, total]) => ({ operadora, total }))
+      .sort((a, b) => b.total - a.total);
+  }, [basFiltrados]);
+
+  const rotasPorOperadora = useMemo(() => {
+    const rotas = basFiltrados.filter((b) => b.tipo_ba === "ROTAS");
+    return Object.entries(agrupar(rotas, "operadora"))
+      .map(([operadora, total]) => ({ operadora, total }))
+      .sort((a, b) => b.total - a.total);
+  }, [basFiltrados]);
+
+  const entrantesPorOperadora = useMemo(() => {
+    const entrantes = basFiltrados.filter((b) => b.tipo_ba === "ENTRANTES");
+    return Object.entries(agrupar(entrantes, "operadora"))
+      .map(([operadora, total]) => ({ operadora, total }))
+      .sort((a, b) => b.total - a.total);
+  }, [basFiltrados]);
 
   // Label descritivo do período
   const labelPeriodo = useMemo(() => {
@@ -442,7 +477,7 @@ export function Analytics() {
         {!semDados && (
           <>
             {/* Mini stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               <MiniStat
                 icon={Activity}
                 label="BAs no período"
@@ -472,6 +507,13 @@ export function Analytics() {
                   : "—"}
                 sub={`${resolvidos.length} de ${basFiltrados.length}`}
                 color="bg-emerald-600"
+              />
+              <MiniStat
+                icon={Ban}
+                label="Taxa de Indevido"
+                value={`${taxaIndevido}%`}
+                sub={`${indevidos.length} de ${basFiltrados.length} BAs`}
+                color="bg-slate-600"
               />
             </div>
 
@@ -520,94 +562,34 @@ export function Analytics() {
               </div>
             )}
 
-            {/* Barras + Donut lado a lado */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Linha 1: Volume por Operadora | BAs por Prioridade | BA's Transporte */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-              {/* Gráfico 1: Volume por Operadora */}
+              {/* Volume por Operadora */}
               <div className="bg-card border border-border rounded-lg p-5">
                 <div className="flex items-center gap-2 mb-1">
                   <TrendingUp className="w-4 h-4 text-primary" />
                   <h2 className="text-sm font-semibold">Volume por Operadora</h2>
                 </div>
                 <p className="text-xs text-muted-foreground mb-4">Principais ofensores no período</p>
-
                 {porOperadora.length === 0 ? (
                   <p className="text-muted-foreground text-sm text-center py-10">Sem dados.</p>
                 ) : (
                   <ResponsiveContainer width="100%" height={260}>
-                    <BarChart
-                      data={porOperadora}
-                      margin={{ top: 0, right: 10, left: -20, bottom: 40 }}
-                    >
+                    <BarChart data={porOperadora} margin={{ top: 0, right: 10, left: -20, bottom: 40 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                      <XAxis
-                        dataKey="operadora"
-                        tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
-                        angle={-35}
-                        textAnchor="end"
-                        interval={0}
-                      />
-                      <YAxis
-                        allowDecimals={false}
-                        tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
-                      />
+                      <XAxis dataKey="operadora" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} angle={-35} textAnchor="end" interval={0} />
+                      <YAxis allowDecimals={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} />
                       <Tooltip content={<CustomTooltip />} cursor={{ fill: "hsl(var(--accent))" }} />
                       <Bar dataKey="total" name="BAs" radius={[4, 4, 0, 0]}>
-                        {porOperadora.map((entry, i) => (
-                          <Cell key={i} fill={getCoreOperadora(entry.operadora, i)} />
-                        ))}
+                        {porOperadora.map((entry, i) => <Cell key={i} fill={getCoreOperadora(entry.operadora, i)} />)}
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 )}
               </div>
 
-              {/* Gráfico 2: Donut por Status */}
-              <div className="bg-card border border-border rounded-lg p-5">
-                <div className="flex items-center gap-2 mb-1">
-                  <Activity className="w-4 h-4 text-primary" />
-                  <h2 className="text-sm font-semibold">Proporção por Status</h2>
-                </div>
-                <p className="text-xs text-muted-foreground mb-4">Distribuição no período</p>
-
-                {porStatus.length === 0 ? (
-                  <p className="text-muted-foreground text-sm text-center py-10">Sem dados.</p>
-                ) : (
-                  <ResponsiveContainer width="100%" height={260}>
-                    <PieChart>
-                      <Pie
-                        data={porStatus}
-                        dataKey="total"
-                        nameKey="status"
-                        cx="50%"
-                        cy="44%"
-                        innerRadius={60}
-                        outerRadius={95}
-                        paddingAngle={3}
-                      >
-                        {porStatus.map((entry, i) => (
-                          <Cell
-                            key={entry.status}
-                            fill={CORES_STATUS[entry.status] ?? CORES_BAR[i % CORES_BAR.length]}
-                          />
-                        ))}
-                      </Pie>
-                      <Tooltip content={<CustomTooltip />} />
-                      <Legend
-                        formatter={(v) => (
-                          <span style={{ color: "hsl(var(--muted-foreground))", fontSize: 11 }}>{v}</span>
-                        )}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                )}
-              </div>
-            </div>
-
-            {/* Prioridade + Operadora de Transporte */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-              {/* Prioridade */}
+              {/* BAs por Prioridade */}
               <div className="bg-card border border-border rounded-lg p-5">
                 <div className="flex items-center gap-2 mb-1">
                   <AlertTriangle className="w-4 h-4 text-primary" />
@@ -623,10 +605,8 @@ export function Analytics() {
                       <div key={p.prioridade} className="flex flex-col items-center gap-1.5 flex-1 max-w-[120px]">
                         <span className="text-lg font-bold">{p.total}</span>
                         <div className="w-full bg-secondary rounded-t overflow-hidden" style={{ height: "56px" }}>
-                          <div
-                            className={`w-full ${color} rounded-t transition-all duration-500`}
-                            style={{ height: `${Math.max(pct * 0.56, 3)}px`, marginTop: `${56 - Math.max(pct * 0.56, 3)}px` }}
-                          />
+                          <div className={`w-full ${color} rounded-t transition-all duration-500`}
+                            style={{ height: `${Math.max(pct * 0.56, 3)}px`, marginTop: `${56 - Math.max(pct * 0.56, 3)}px` }} />
                         </div>
                         <span className="text-xs text-muted-foreground text-center">{p.prioridade}</span>
                       </div>
@@ -635,26 +615,21 @@ export function Analytics() {
                 </div>
               </div>
 
-              {/* Top Operadoras de Transporte */}
+              {/* BA's Transporte */}
               {(() => {
                 const comTransporte = basFiltrados.filter((b) => b.operadora_transporte);
                 const porOpTrans = Object.entries(agrupar(comTransporte, "operadora_transporte"))
                   .map(([op, total]) => ({ op, total }))
                   .sort((a, b) => b.total - a.total);
-
                 return (
                   <div className="bg-card border border-border rounded-lg p-5">
                     <div className="flex items-center gap-2 mb-1">
                       <Activity className="w-4 h-4 text-primary" />
-                      <h2 className="text-sm font-semibold">Operadoras de Transporte</h2>
+                      <h2 className="text-sm font-semibold">BA's Transporte</h2>
                     </div>
-                    <p className="text-xs text-muted-foreground mb-4">
-                      {comTransporte.length} BAs com transporte no período
-                    </p>
+                    <p className="text-xs text-muted-foreground mb-4">{comTransporte.length} BAs com transporte no período</p>
                     {porOpTrans.length === 0 ? (
-                      <p className="text-muted-foreground text-sm text-center py-8">
-                        Nenhum BA com operadora de transporte no período.
-                      </p>
+                      <p className="text-muted-foreground text-sm text-center py-8">Nenhum BA com operadora de transporte no período.</p>
                     ) : (
                       <div className="space-y-2">
                         {porOpTrans.map(({ op, total }, i) => {
@@ -664,13 +639,8 @@ export function Analytics() {
                             <div key={op} className="flex items-center gap-3">
                               <span className="text-xs w-16 text-right text-muted-foreground shrink-0">{op}</span>
                               <div className="flex-1 bg-secondary rounded-full h-5 overflow-hidden">
-                                <div
-                                  className="h-full rounded-full transition-all duration-500"
-                                  style={{
-                                    width: `${pct}%`,
-                                    background: getCoreOperadora(op, i),
-                                  }}
-                                />
+                                <div className="h-full rounded-full transition-all duration-500"
+                                  style={{ width: `${pct}%`, background: getCoreOperadora(op, i) }} />
                               </div>
                               <span className="text-xs font-bold w-6 shrink-0">{total}</span>
                             </div>
@@ -681,6 +651,153 @@ export function Analytics() {
                   </div>
                 );
               })()}
+            </div>
+
+            {/* Linha 2: Proporção por Tipo de BA — full width */}
+            <div className="bg-card border border-border rounded-lg p-5 w-full">
+              <div className="flex items-center gap-2 mb-1">
+                <Activity className="w-4 h-4 text-primary" />
+                <h2 className="text-sm font-semibold">Proporção por Tipo de BA</h2>
+              </div>
+              <p className="text-xs text-muted-foreground mb-4">Distribuição entre Entrantes, Rotas e STIR SHAKEN</p>
+              {porTipoBa.length === 0 ? (
+                <p className="text-muted-foreground text-sm text-center py-10">Nenhum BA com tipo definido no período.</p>
+              ) : (
+                <div className="flex flex-col sm:flex-row items-center gap-6">
+                  {/* Donut */}
+                  <div className="shrink-0 w-full sm:w-[320px]">
+                    <ResponsiveContainer width="100%" height={260}>
+                      <PieChart>
+                        <Pie data={porTipoBa} dataKey="total" nameKey="tipo" cx="50%" cy="50%" innerRadius={70} outerRadius={110} paddingAngle={3}>
+                          {porTipoBa.map((entry) => <Cell key={entry.tipo} fill={CORES_TIPO[entry.tipo] ?? "#94a3b8"} />)}
+                        </Pie>
+                        <Tooltip content={<CustomTooltip />} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  {/* Stats ao lado — layout: ENTRANTES | STIR SHAKEN / ROTAS centralizado */}
+                  <div className="flex-1 flex flex-col gap-3 w-full">
+                    {/* Linha topo: ENTRANTES + STIR SHAKEN */}
+                    <div className="grid grid-cols-2 gap-3">
+                      {["ENTRANTES", "STIR SHAKEN"].map((tipo) => {
+                        const entry = porTipoBa.find((e) => e.tipo === tipo);
+                        const total = entry?.total ?? 0;
+                        const totalGeral = porTipoBa.reduce((s, e) => s + e.total, 0);
+                        const pct = totalGeral > 0 ? Math.round((total / totalGeral) * 100) : 0;
+                        return (
+                          <div key={tipo} className="bg-secondary/40 rounded-lg p-4 flex flex-col gap-1">
+                            <div className="flex items-center gap-2">
+                              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: CORES_TIPO[tipo] }} />
+                              <span className="text-xs text-muted-foreground font-medium">{tipo}</span>
+                            </div>
+                            <span className="text-3xl font-bold tracking-tight">{total}</span>
+                            <span className="text-xs text-muted-foreground">{pct}% do total</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {/* Linha abaixo: ROTAS centralizado */}
+                    <div className="flex justify-center">
+                      {(() => {
+                        const tipo = "ROTAS";
+                        const entry = porTipoBa.find((e) => e.tipo === tipo);
+                        const total = entry?.total ?? 0;
+                        const totalGeral = porTipoBa.reduce((s, e) => s + e.total, 0);
+                        const pct = totalGeral > 0 ? Math.round((total / totalGeral) * 100) : 0;
+                        return (
+                          <div className="bg-secondary/40 rounded-lg p-4 flex flex-col gap-1 w-full max-w-xs">
+                            <div className="flex items-center gap-2">
+                              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: CORES_TIPO[tipo] }} />
+                              <span className="text-xs text-muted-foreground font-medium">{tipo}</span>
+                            </div>
+                            <span className="text-3xl font-bold tracking-tight">{total}</span>
+                            <span className="text-xs text-muted-foreground">{pct}% do total</span>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Linha 3: ENTRANTES | STIR SHAKEN — 2 colunas iguais */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+              {/* Volume ENTRANTES por Operadora */}
+              <div className="bg-card border border-border rounded-lg p-5">
+                <div className="flex items-center gap-2 mb-1">
+                  <TrendingUp className="w-4 h-4 text-sky-500" />
+                  <h2 className="text-sm font-semibold">Volume BAs ENTRANTES por Operadora</h2>
+                </div>
+                <p className="text-xs text-muted-foreground mb-4">{entrantesPorOperadora.reduce((s, x) => s + x.total, 0)} BAs ENTRANTES no período</p>
+                {entrantesPorOperadora.length === 0 ? (
+                  <p className="text-muted-foreground text-sm text-center py-10">Nenhum BA ENTRANTES no período.</p>
+                ) : (
+                  <ResponsiveContainer width="100%" height={260}>
+                    <BarChart data={entrantesPorOperadora} margin={{ top: 0, right: 10, left: -20, bottom: 40 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                      <XAxis dataKey="operadora" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} angle={-35} textAnchor="end" interval={0} />
+                      <YAxis allowDecimals={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} />
+                      <Tooltip content={<CustomTooltip />} cursor={{ fill: "hsl(var(--accent))" }} />
+                      <Bar dataKey="total" name="BAs ENTRANTES" radius={[4, 4, 0, 0]}>
+                        {entrantesPorOperadora.map((_, i) => <Cell key={i} fill="#38bdf8" />)}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+
+              {/* Volume STIR SHAKEN por Operadora */}
+              <div className="bg-card border border-border rounded-lg p-5">
+                <div className="flex items-center gap-2 mb-1">
+                  <ShieldAlert className="w-4 h-4 text-violet-500" />
+                  <h2 className="text-sm font-semibold">Volume BAs STIR SHAKEN por Operadora</h2>
+                </div>
+                <p className="text-xs text-muted-foreground mb-4">{stirShakenPorOperadora.reduce((s, x) => s + x.total, 0)} BAs STIR SHAKEN no período</p>
+                {stirShakenPorOperadora.length === 0 ? (
+                  <p className="text-muted-foreground text-sm text-center py-10">Nenhum BA STIR SHAKEN no período.</p>
+                ) : (
+                  <ResponsiveContainer width="100%" height={260}>
+                    <BarChart data={stirShakenPorOperadora} margin={{ top: 0, right: 10, left: -20, bottom: 40 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                      <XAxis dataKey="operadora" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} angle={-35} textAnchor="end" interval={0} />
+                      <YAxis allowDecimals={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} />
+                      <Tooltip content={<CustomTooltip />} cursor={{ fill: "hsl(var(--accent))" }} />
+                      <Bar dataKey="total" name="BAs STIR SHAKEN" radius={[4, 4, 0, 0]}>
+                        {stirShakenPorOperadora.map((_, i) => <Cell key={i} fill="#a855f7" />)}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </div>
+
+            {/* Linha 4: ROTAS centralizado */}
+            <div className="flex justify-center">
+              <div className="bg-card border border-border rounded-lg p-5 w-full max-w-xl">
+                <div className="flex items-center gap-2 mb-1">
+                  <TrendingUp className="w-4 h-4 text-emerald-500" />
+                  <h2 className="text-sm font-semibold">Volume BAs ROTAS por Operadora</h2>
+                </div>
+                <p className="text-xs text-muted-foreground mb-4">{rotasPorOperadora.reduce((s, x) => s + x.total, 0)} BAs ROTAS no período</p>
+                {rotasPorOperadora.length === 0 ? (
+                  <p className="text-muted-foreground text-sm text-center py-10">Nenhum BA ROTAS no período.</p>
+                ) : (
+                  <ResponsiveContainer width="100%" height={260}>
+                    <BarChart data={rotasPorOperadora} margin={{ top: 0, right: 10, left: -20, bottom: 40 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                      <XAxis dataKey="operadora" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} angle={-35} textAnchor="end" interval={0} />
+                      <YAxis allowDecimals={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} />
+                      <Tooltip content={<CustomTooltip />} cursor={{ fill: "hsl(var(--accent))" }} />
+                      <Bar dataKey="total" name="BAs ROTAS" radius={[4, 4, 0, 0]}>
+                        {rotasPorOperadora.map((_, i) => <Cell key={i} fill="#10b981" />)}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
             </div>
           </>
         )}

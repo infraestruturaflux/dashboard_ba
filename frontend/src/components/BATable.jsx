@@ -178,6 +178,22 @@ function Row({ ba, toast, onOpenTimeline, selected, onToggle }) {
         <span className="truncate block" title={ba.cliente}>{ba.cliente}</span>
       </td>
 
+      {/* Tipo BA */}
+      <td className="px-2 py-2 whitespace-nowrap">
+        {ba.tipo_ba ? (
+          <span className={cn(
+            "inline-block text-[10px] font-semibold px-2 py-0.5 rounded",
+            ba.tipo_ba === "STIR SHAKEN" ? "bg-violet-600/20 text-violet-400" :
+            ba.tipo_ba === "ENTRANTES"   ? "bg-sky-600/20 text-sky-400" :
+                                           "bg-emerald-600/20 text-emerald-400"
+          )}>
+            {ba.tipo_ba}
+          </span>
+        ) : (
+          <span className="text-muted-foreground/40 text-xs">—</span>
+        )}
+      </td>
+
       {/* Operadora */}
       <td className="px-2 py-2 whitespace-nowrap">
         {(() => {
@@ -500,6 +516,7 @@ export function BATable({ bas, toast, defaultSort }) {
               </th>
               <Th label="Nº BA"            coluna="numero_ba"          {...thProps} />
               <Th label="Cliente"          coluna="cliente"            {...thProps} />
+              <Th label="Tipo BA"          coluna="tipo_ba"            {...thProps} />
               <Th label="Operadora"        coluna="operadora"          {...thProps} />
               <Th label="Status"           coluna="status"             {...thProps} />
               <Th label="Prioridade"       coluna="prioridade"         {...thProps} />

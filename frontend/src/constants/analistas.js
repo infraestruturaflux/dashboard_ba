@@ -2,7 +2,6 @@ export const ANALISTAS = [
   "Amilton Gil",
   "Douglas Feller",
   "Gean Santos",
-  "Guilherme Krug",
   "João Bortolaci",
   "Luan Arnold",
   "Matheus Adams",

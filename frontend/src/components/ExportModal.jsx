@@ -14,8 +14,10 @@ import {
 
 const STATUS_OPTIONS = [
   "Todos", "Aberto", "Transporte", "Em validação",
-  "Escalonado", "Escalonado Transportes", "Devolvido", "Engenharia", "Resolvido e fechado",
+  "Escalonado", "Escalonado Transportes", "Devolvido", "Engenharia", "Indevido", "Resolvido e fechado",
 ];
+
+const TIPO_BA_OPTIONS = ["Todos", "ENTRANTES", "ROTAS", "STIR SHAKEN"];
 
 export function ExportModal() {
   const [open, setOpen] = useState(false);
@@ -24,6 +26,7 @@ export function ExportModal() {
     dataInicio: "",
     dataFim:    hoje,
     status:     "Todos",
+    tipoBa:     "Todos",
   });
 
   function handleExport() {
@@ -31,6 +34,7 @@ export function ExportModal() {
       dataInicio: form.dataInicio ? `${form.dataInicio}T00:00:00` : null,
       dataFim:    form.dataFim    ? `${form.dataFim}T23:59:59`    : null,
       status:     form.status,
+      tipoBa:     form.tipoBa,
     });
     setOpen(false);
   }
@@ -75,6 +79,18 @@ export function ExportModal() {
               <SelectContent>
                 {STATUS_OPTIONS.map((s) => (
                   <SelectItem key={s} value={s}>{s}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label>Tipo de BA</Label>
+            <Select value={form.tipoBa} onValueChange={(v) => setForm((f) => ({ ...f, tipoBa: v }))}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {TIPO_BA_OPTIONS.map((t) => (
+                  <SelectItem key={t} value={t}>{t}</SelectItem>
                 ))}
               </SelectContent>
             </Select>

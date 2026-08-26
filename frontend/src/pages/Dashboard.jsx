@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { RefreshCw, AlertTriangle, CheckCircle2, Clock, Activity, Archive, Ban } from "lucide-react";
+import { RefreshCw, AlertTriangle, CheckCircle2, Clock, Activity, Archive, Ban, XCircle, ShieldAlert } from "lucide-react";
 
 import { fetchBAs, fetchBAsGestor } from "@/api/bas";
 import { BATable } from "@/components/BATable";
@@ -34,8 +34,9 @@ function aplicarFiltros(bas, filtros) {
     if (filtros.cgp        && b.cgp            !== filtros.cgp)        return false;
     if (filtros.status     && b.status         !== filtros.status)     return false;
     if (filtros.responsavel && b.pessoa_chamado !== filtros.responsavel) return false;
+    if (filtros.tipoBa      && b.tipo_ba         !== filtros.tipoBa)      return false;
     if (busca) {
-      const campos = [b.numero_ba, b.status, b.ticket_zammad, b.cliente, b.numero_origem, b.numero_destino, b.numero_ba_ofendida, b.numero_ba_transporte, b.pessoa_chamado, b.responsavel_abertura];
+      const campos = [b.numero_ba, b.status, b.ticket_zammad, b.cliente, b.numero_origem, b.numero_destino, b.numero_ba_ofendida, b.numero_ba_transporte, b.pessoa_chamado, b.responsavel_abertura, b.tipo_ba];
       if (!campos.some((c) => c?.toLowerCase().includes(busca))) return false;
     }
     return true;
@@ -45,7 +46,7 @@ function aplicarFiltros(bas, filtros) {
 // ── Dashboard ─────────────────────────────────
 export function Dashboard({ toast }) {
   const { isAdmin } = useAuth();
-  const [filtros, setFiltros] = useState({ operadora: "", cgp: "", status: "", responsavel: "", busca: "" });
+  const [filtros, setFiltros] = useState({ operadora: "", cgp: "", status: "", responsavel: "", tipoBa: "", busca: "" });
 
   const { data: bas = [], isLoading, refetch, isFetching } = useQuery({
     queryKey: ["bas"],
@@ -60,15 +61,19 @@ export function Dashboard({ toast }) {
   });
 
   // Stats sempre sobre todos os BAs (sem filtro aplicado)
-  const abertos      = bas.filter((b) => b.status !== "Resolvido e fechado").length;
-  const slaEstourado = bas.filter((b) => b.sla_estourado && b.status !== "Resolvido e fechado").length;
-  const urgentes     = bas.filter((b) => b.prioridade === "Urgente" && b.status !== "Resolvido e fechado").length;
+  const FECHADOS_STATS = ["Resolvido e fechado", "Indevido"];
+  const abertos      = bas.filter((b) => !FECHADOS_STATS.includes(b.status)).length;
+  const slaEstourado = bas.filter((b) => b.sla_estourado && !FECHADOS_STATS.includes(b.status)).length;
+  const urgentes     = bas.filter((b) => b.prioridade === "Urgente" && !FECHADOS_STATS.includes(b.status)).length;
   const resolvidos   = bas.filter((b) => b.status === "Resolvido e fechado").length;
+  const indevidos    = bas.filter((b) => b.status === "Indevido").length;
+  const stirShaken   = bas.filter((b) => b.tipo_ba === "STIR SHAKEN").length;
 
   // Separação por estado
-  const basAtivos     = useMemo(() => bas.filter((b) => b.status !== "Resolvido e fechado" && b.status !== "Indevido"), [bas]);
-  const basResolvidos = useMemo(() => bas.filter((b) => b.status === "Resolvido e fechado"), [bas]);
-  const basIndevidos  = useMemo(() => bas.filter((b) => b.status === "Indevido"), [bas]);
+  const basAtivos      = useMemo(() => bas.filter((b) => b.status !== "Resolvido e fechado" && b.status !== "Indevido"), [bas]);
+  const basResolvidos  = useMemo(() => bas.filter((b) => b.status === "Resolvido e fechado"), [bas]);
+  const basIndevidos   = useMemo(() => bas.filter((b) => b.status === "Indevido"), [bas]);
+  const basStirShaken  = useMemo(() => bas.filter((b) => b.tipo_ba === "STIR SHAKEN"), [bas]);
 
   // Busca global — quando busca ativa, une todos os BAs
   const todosBas = useMemo(() => bas, [bas]);
@@ -76,10 +81,11 @@ export function Dashboard({ toast }) {
 
   // Filtros aplicados para exibição
   const basFiltrados           = useMemo(() => aplicarFiltros(basAtivos,     filtros), [basAtivos,     filtros]);
-  const basGestorFiltrados     = useMemo(() => aplicarFiltros(basGestor,     filtros), [basGestor,     filtros]);
-  const basResolvidosFiltrados = useMemo(() => aplicarFiltros(basResolvidos, filtros), [basResolvidos, filtros]);
-  const basIndevidosFiltrados  = useMemo(() => aplicarFiltros(basIndevidos,  filtros), [basIndevidos,  filtros]);
-  const basGlobalFiltrados     = useMemo(() => aplicarFiltros(todosBas,      filtros), [todosBas,      filtros]);
+  const basGestorFiltrados      = useMemo(() => aplicarFiltros(basGestor,     filtros), [basGestor,     filtros]);
+  const basResolvidosFiltrados  = useMemo(() => aplicarFiltros(basResolvidos, filtros), [basResolvidos, filtros]);
+  const basIndevidosFiltrados   = useMemo(() => aplicarFiltros(basIndevidos,  filtros), [basIndevidos,  filtros]);
+  const basStirShakenFiltrados  = useMemo(() => aplicarFiltros(basStirShaken, filtros), [basStirShaken, filtros]);
+  const basGlobalFiltrados      = useMemo(() => aplicarFiltros(todosBas,      filtros), [todosBas,      filtros]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -110,11 +116,13 @@ export function Dashboard({ toast }) {
 
       <main className="px-6 py-6 space-y-5 max-w-[1800px] mx-auto">
         {/* Cards de estatísticas */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
           <StatCard icon={Clock}         label="BAs em Aberto"   value={abertos}      color="bg-sky-600" />
           <StatCard icon={AlertTriangle} label="SLA Estourado"   value={slaEstourado} color="bg-red-600" />
           <StatCard icon={Activity}      label="Urgentes Ativos" value={urgentes}     color="bg-amber-500" />
           <StatCard icon={CheckCircle2}  label="Resolvidos"      value={resolvidos}   color="bg-emerald-600" />
+          <StatCard icon={XCircle}       label="BAs Indevidos"   value={indevidos}    color="bg-slate-600" />
+          <StatCard icon={ShieldAlert}   label="STIR SHAKEN"     value={stirShaken}   color="bg-violet-600" />
         </div>
 
         {/* Tabs: NOC / Gestor */}
@@ -156,6 +164,15 @@ export function Dashboard({ toast }) {
                 {basIndevidos.length > 0 && (
                   <span className="ml-1 bg-slate-500 text-white rounded-full text-[10px] px-1.5 py-0.5">
                     {basIndevidos.length}
+                  </span>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="stir-shaken">
+                <ShieldAlert className="w-4 h-4" />
+                STIR SHAKEN
+                {basStirShaken.length > 0 && (
+                  <span className="ml-1 bg-violet-600 text-white rounded-full text-[10px] px-1.5 py-0.5">
+                    {basStirShaken.length}
                   </span>
                 )}
               </TabsTrigger>
@@ -229,6 +246,22 @@ export function Dashboard({ toast }) {
               </div>
             ) : (
               <BATable bas={basIndevidosFiltrados} toast={toast} />
+            )}
+          </TabsContent>
+
+          {/* BAs STIR SHAKEN */}
+          <TabsContent value="stir-shaken">
+            {isLoading ? (
+              <div className="text-center text-muted-foreground py-16">Carregando...</div>
+            ) : basStirShakenFiltrados.length === 0 ? (
+              <div className="text-center py-16 space-y-2">
+                <ShieldAlert className="w-10 h-10 text-violet-500 mx-auto" />
+                <p className="text-muted-foreground text-sm">
+                  {basStirShaken.length > 0 ? "Nenhum BA STIR SHAKEN com os filtros aplicados." : "Nenhum BA STIR SHAKEN ainda."}
+                </p>
+              </div>
+            ) : (
+              <BATable bas={basStirShakenFiltrados} toast={toast} />
             )}
           </TabsContent>
 

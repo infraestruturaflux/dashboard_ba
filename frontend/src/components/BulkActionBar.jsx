@@ -16,7 +16,7 @@ import {
 
 const STATUS_OPTIONS = [
   "Aberto", "Transporte", "Em validação",
-  "Escalonado", "Escalonado Transportes", "Devolvido", "Engenharia", "Resolvido e fechado",
+  "Escalonado", "Escalonado Transportes", "Devolvido", "Engenharia", "Indevido", "Resolvido e fechado",
 ];
 
 const OPERADORAS_TRANSPORTE = ["Oi", "Vivo", "TIM", "Claro", "Algar", "Outra"];

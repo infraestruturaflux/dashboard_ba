@@ -49,11 +49,12 @@ export const bulkUpdate = (payload) =>
   api.put("/bas/bulk-update", payload).then((r) => r.data);
 
 // ── Exportação CSV ───────────────────────────
-export const exportarCSV = ({ dataInicio, dataFim, status }) => {
+export const exportarCSV = ({ dataInicio, dataFim, status, tipoBa }) => {
   const params = new URLSearchParams();
   if (dataInicio) params.append("data_inicio", new Date(dataInicio).toISOString());
   if (dataFim)    params.append("data_fim",    new Date(dataFim).toISOString());
   if (status && status !== "Todos") params.append("status", status);
+  if (tipoBa && tipoBa !== "Todos") params.append("tipo_ba", tipoBa);
 
   // Abre direto no navegador — o Content-Disposition vai disparar o download
   const base = import.meta.env.VITE_API_URL || "http://localhost:8001";

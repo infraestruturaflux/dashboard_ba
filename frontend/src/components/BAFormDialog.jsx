@@ -5,6 +5,7 @@ import { PlusCircle, Truck, Plus, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 
 import { criarBA } from "@/api/bas";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,11 +23,14 @@ const STATUS_OPTIONS = [
   "Escalonado", "Escalonado Transportes", "Devolvido", "Engenharia", "Indevido", "Resolvido e fechado",
 ];
 
+const TIPO_BA_OPTIONS = ["ENTRANTES", "ROTAS", "STIR SHAKEN"];
+
 const PORTABILIDADE_OPTIONS = [
   "NÃO PORTADO", "PORTADO",
   "CNG NÃO PORTADO", "CNG PORTADO",
   "MIGRADO NÃO PORTADO", "PTO",
 ];
+const OPERADORAS_BA         = ["VIVO", "TIM", "CLARO", "Outra"];
 const OPERADORAS_TRANSPORTE = ["Oi", "Vivo", "TIM", "Claro", "Algar", "Outra"];
 const STATUS_TRANSPORTE     = ["Transporte", "Escalonado Transportes"];
 const CGP_OPTIONS           = ["0924 - Flux", "0845 - Defferari"];
@@ -54,7 +58,10 @@ function Field({ label, error, children, className = "" }) {
 
 export function BAFormDialog({ toast }) {
   const [open, setOpen]                 = useState(false);
+  const [tipoBaSel, setTipoBaSel]       = useState("");
   const [statusSel, setStatusSel]       = useState("Aberto");
+  const [operadoraSel, setOperadoraSel] = useState("");
+  const [outraOperadora, setOutraOperadora] = useState("");
   const [opTransporte, setOpTrans]      = useState("");
   const [outraOp, setOutraOp]           = useState("");
   const [nrBATransporte, setNrBATrans]  = useState("");
@@ -89,7 +96,10 @@ export function BAFormDialog({ toast }) {
       toast({ title: "BA criado com sucesso!" });
       // reset completo
       reset();
+      setTipoBaSel("");
       setStatusSel("Aberto");
+      setOperadoraSel("");
+      setOutraOperadora("");
       setOpTrans("");
       setOutraOp("");
       setNrBATrans("");
@@ -130,6 +140,9 @@ export function BAFormDialog({ toast }) {
   }
 
   function onSubmit(data) {
+    if (!tipoBaSel)                           return toast({ title: "Selecione o Tipo de BA.", variant: "destructive" });
+    const opBAFinal = operadoraSel === "Outra" ? outraOperadora.trim() : operadoraSel;
+    if (!opBAFinal)                           return toast({ title: "Selecione a Operadora.", variant: "destructive" });
     if (!cgpSel)                              return toast({ title: "Selecione o CGP.", variant: "destructive" });
     const opFinal = opTransporte === "Outra" ? outraOp.trim() : opTransporte;
     if (precisaTransporte && !opFinal)             return toast({ title: "Selecione a Operadora de Transporte.", variant: "destructive" });
@@ -141,6 +154,8 @@ export function BAFormDialog({ toast }) {
 
     mutation.mutate({
       ...data,
+      operadora:             opBAFinal,
+      tipo_ba:               tipoBaSel,
       cgp:                   cgpSel,
       prioridade:            prioridadeSel,
       status:                statusSel,
@@ -175,30 +190,76 @@ export function BAFormDialog({ toast }) {
           </p>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-2 gap-4 mt-2">
+        {/* grid-cols-6: permite 3 iguais na 1ª linha (2+2+2) e 50/50 no resto (3+3) */}
+        <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-6 gap-4 mt-2">
 
-          {/* ── Identificação ─────────────────────── */}
-          <Field label="Número BA" error={errors.numero_ba}>
-            <Input
-              placeholder="BA-2024-001"
-              {...register("numero_ba", REQUIRED)}
-            />
-          </Field>
+          {/* ── Identificação: Número BA | Operadora | Tipo BA ── */}
+          <div className="col-span-2 flex flex-col gap-1.5">
+            <Label>Número BA <span className="text-destructive">*</span></Label>
+            <Input placeholder="BA-2024-001" {...register("numero_ba", REQUIRED)} />
+            {errors.numero_ba && <span className="text-destructive text-xs">{errors.numero_ba.message}</span>}
+          </div>
 
-          <Field label="Operadora" error={errors.operadora}>
-            <Input
-              placeholder="Ex: Vivo, Claro, TIM…"
-              {...register("operadora", REQUIRED)}
-            />
-          </Field>
+          {/* Operadora */}
+          <div className="col-span-2 flex flex-col gap-1.5">
+            <Label>Operadora <span className="text-destructive">*</span></Label>
+            <Select value={operadoraSel} onValueChange={setOperadoraSel}>
+              <SelectTrigger className={cn(!operadoraSel ? "border-destructive/40" : "")}>
+                <SelectValue placeholder="Selecione…" />
+              </SelectTrigger>
+              <SelectContent>
+                {OPERADORAS_BA.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            {!operadoraSel && <span className="text-xs text-muted-foreground">Selecione uma operadora.</span>}
+          </div>
 
-          {/* ── Circuito ──────────────────────────── */}
-          {/* Origem principal */}
-          <Field label="Número Origem" error={errors.numero_origem}>
+          {/* Tipo de BA */}
+          <div className="col-span-2 flex flex-col gap-1.5">
+            <Label>Tipo de BA <span className="text-destructive">*</span></Label>
+            <Select value={tipoBaSel} onValueChange={setTipoBaSel}>
+              <SelectTrigger className={!tipoBaSel ? "border-destructive/40" : ""}>
+                <SelectValue placeholder="Selecione o tipo…" />
+              </SelectTrigger>
+              <SelectContent>
+                {TIPO_BA_OPTIONS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            {!tipoBaSel && <span className="text-xs text-muted-foreground">Selecione um tipo.</span>}
+          </div>
+
+          {/* Campo livre quando "Outra" operadora */}
+          {operadoraSel === "Outra" && (
+            <div className="col-span-6 flex flex-col gap-1.5">
+              <Label>Nome da Operadora <span className="text-destructive">*</span></Label>
+              <Input
+                placeholder="Ex: Algar, Nextel, Embratel…"
+                value={outraOperadora}
+                onChange={(e) => setOutraOperadora(e.target.value)}
+                className={!outraOperadora ? "border-destructive/40" : ""}
+              />
+            </div>
+          )}
+
+          {/* ── Circuito: 50/50 ── */}
+          {/* Número Origem */}
+          <div className="col-span-3 flex flex-col gap-1.5">
+            <Label>Número Origem <span className="text-destructive">*</span></Label>
             <Input {...register("numero_origem", REQUIRED)} />
-          </Field>
+            {errors.numero_origem
+              ? <span className="text-destructive text-xs">{errors.numero_origem.message}</span>
+              : <button
+                  type="button"
+                  onClick={() => setOrigensExtras([...origensExtras, { numero: "", portabilidade: "" }])}
+                  className="flex items-center gap-1 text-[11px] text-primary hover:underline self-start"
+                >
+                  <Plus className="w-3 h-3" /> Adicionar outra origem
+                </button>
+            }
+          </div>
 
-          <div className="flex flex-col gap-1.5">
+          {/* Portabilidade Origem */}
+          <div className="col-span-3 flex flex-col gap-1.5">
             <Label>Portabilidade Origem <span className="text-destructive">*</span></Label>
             <Select value={portOrigem} onValueChange={setPortOrigem}>
               <SelectTrigger className={!portOrigem ? "border-destructive/40" : ""}>
@@ -213,63 +274,49 @@ export function BAFormDialog({ toast }) {
 
           {/* Origens extras */}
           {origensExtras.map((o, i) => (
-            <div key={i} className="col-span-2 grid grid-cols-2 gap-2 items-end border border-border/50 rounded p-2">
-              <div className="flex flex-col gap-1">
+            <div key={i} className="col-span-6 grid grid-cols-6 gap-2 items-end border border-border/50 rounded p-2">
+              <div className="col-span-3 flex flex-col gap-1">
                 <Label className="text-xs text-muted-foreground">Origem adicional {i + 2}</Label>
                 <Input
                   placeholder="Número origem"
                   value={o.numero}
-                  onChange={(e) => {
-                    const copy = [...origensExtras];
-                    copy[i].numero = e.target.value;
-                    setOrigensExtras(copy);
-                  }}
+                  onChange={(e) => { const c=[...origensExtras]; c[i].numero=e.target.value; setOrigensExtras(c); }}
                 />
               </div>
-              <div className="flex gap-2 items-end">
+              <div className="col-span-3 flex gap-2 items-end">
                 <div className="flex-1 flex flex-col gap-1">
                   <Label className="text-xs text-muted-foreground">Portabilidade</Label>
-                  <Select
-                    value={o.portabilidade}
-                    onValueChange={(v) => {
-                      const copy = [...origensExtras];
-                      copy[i].portabilidade = v;
-                      setOrigensExtras(copy);
-                    }}
-                  >
+                  <Select value={o.portabilidade} onValueChange={(v) => { const c=[...origensExtras]; c[i].portabilidade=v; setOrigensExtras(c); }}>
                     <SelectTrigger><SelectValue placeholder="Selecione…" /></SelectTrigger>
-                    <SelectContent>
-                      {PORTABILIDADE_OPTIONS.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-                    </SelectContent>
+                    <SelectContent>{PORTABILIDADE_OPTIONS.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setOrigensExtras(origensExtras.filter((_, j) => j !== i))}
-                  className="p-2 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors mb-0.5"
-                >
+                <button type="button" onClick={() => setOrigensExtras(origensExtras.filter((_,j)=>j!==i))}
+                  className="p-2 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors mb-0.5">
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
             </div>
           ))}
 
-          {/* Botão adicionar origem */}
-          <div className="col-span-2">
-            <button
-              type="button"
-              onClick={() => setOrigensExtras([...origensExtras, { numero: "", portabilidade: "" }])}
-              className="flex items-center gap-1.5 text-xs text-primary hover:underline"
-            >
-              <Plus className="w-3.5 h-3.5" /> Adicionar outra origem
-            </button>
+          {/* Número Destino */}
+          <div className="col-span-3 flex flex-col gap-1.5">
+            <Label>Número Destino <span className="text-destructive">*</span></Label>
+            <Input {...register("numero_destino", REQUIRED)} />
+            {errors.numero_destino
+              ? <span className="text-destructive text-xs">{errors.numero_destino.message}</span>
+              : <button
+                  type="button"
+                  onClick={() => setDestinosExtras([...destinosExtras, { numero: "", portabilidade: "" }])}
+                  className="flex items-center gap-1 text-[11px] text-primary hover:underline self-start"
+                >
+                  <Plus className="w-3 h-3" /> Adicionar outro destino
+                </button>
+            }
           </div>
 
-          <Field label="Número Destino" error={errors.numero_destino}>
-            <Input {...register("numero_destino", REQUIRED)} />
-          </Field>
-
-          <div className="flex flex-col gap-1.5">
+          {/* Portabilidade Destino */}
+          <div className="col-span-3 flex flex-col gap-1.5">
             <Label>Portabilidade Destino <span className="text-destructive">*</span></Label>
             <Select value={portDestino} onValueChange={setPortDestino}>
               <SelectTrigger className={!portDestino ? "border-destructive/40" : ""}>
@@ -284,69 +331,42 @@ export function BAFormDialog({ toast }) {
 
           {/* Destinos extras */}
           {destinosExtras.map((o, i) => (
-            <div key={i} className="col-span-2 grid grid-cols-2 gap-2 items-end border border-border/50 rounded p-2">
-              <div className="flex flex-col gap-1">
+            <div key={i} className="col-span-6 grid grid-cols-6 gap-2 items-end border border-border/50 rounded p-2">
+              <div className="col-span-3 flex flex-col gap-1">
                 <Label className="text-xs text-muted-foreground">Destino adicional {i + 2}</Label>
                 <Input
                   placeholder="Número destino"
                   value={o.numero}
-                  onChange={(e) => {
-                    const copy = [...destinosExtras];
-                    copy[i].numero = e.target.value;
-                    setDestinosExtras(copy);
-                  }}
+                  onChange={(e) => { const c=[...destinosExtras]; c[i].numero=e.target.value; setDestinosExtras(c); }}
                 />
               </div>
-              <div className="flex gap-2 items-end">
+              <div className="col-span-3 flex gap-2 items-end">
                 <div className="flex-1 flex flex-col gap-1">
                   <Label className="text-xs text-muted-foreground">Portabilidade</Label>
-                  <Select
-                    value={o.portabilidade}
-                    onValueChange={(v) => {
-                      const copy = [...destinosExtras];
-                      copy[i].portabilidade = v;
-                      setDestinosExtras(copy);
-                    }}
-                  >
+                  <Select value={o.portabilidade} onValueChange={(v) => { const c=[...destinosExtras]; c[i].portabilidade=v; setDestinosExtras(c); }}>
                     <SelectTrigger><SelectValue placeholder="Selecione…" /></SelectTrigger>
-                    <SelectContent>
-                      {PORTABILIDADE_OPTIONS.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-                    </SelectContent>
+                    <SelectContent>{PORTABILIDADE_OPTIONS.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setDestinosExtras(destinosExtras.filter((_, j) => j !== i))}
-                  className="p-2 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors mb-0.5"
-                >
+                <button type="button" onClick={() => setDestinosExtras(destinosExtras.filter((_,j)=>j!==i))}
+                  className="p-2 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors mb-0.5">
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
             </div>
           ))}
 
-          {/* Botão adicionar destino */}
-          <div className="col-span-2">
-            <button
-              type="button"
-              onClick={() => setDestinosExtras([...destinosExtras, { numero: "", portabilidade: "" }])}
-              className="flex items-center gap-1.5 text-xs text-primary hover:underline"
-            >
-              <Plus className="w-3.5 h-3.5" /> Adicionar outro destino
-            </button>
-          </div>
-
           {/* Nº BA Ofendida */}
-          <Field label="Nº BA Ofendida" error={errors.numero_ba_ofendida} className="col-span-2">
+          <Field label="Nº BA Ofendida" error={errors.numero_ba_ofendida} className="col-span-6">
             <Input {...register("numero_ba_ofendida", REQUIRED)} />
           </Field>
 
           {/* ── Responsabilidades ─────────────────── */}
-          <Field label="Cliente" error={errors.cliente}>
+          <Field label="Cliente" error={errors.cliente} className="col-span-2">
             <Input {...register("cliente", REQUIRED)} />
           </Field>
 
-          <div className="flex flex-col gap-1.5">
+          <div className="col-span-2 flex flex-col gap-1.5">
             <Label>Pessoa no Chamado <span className="text-destructive">*</span></Label>
             <AnalystCombobox
               value={pessoaChamado}
@@ -358,7 +378,7 @@ export function BAFormDialog({ toast }) {
             )}
           </div>
 
-          <div className="flex flex-col gap-1.5 col-span-2">
+          <div className="col-span-2 flex flex-col gap-1.5">
             <Label>Responsável pela abertura do BA <span className="text-destructive">*</span></Label>
             <AnalystCombobox
               value={responsavelAbertura}
@@ -371,14 +391,14 @@ export function BAFormDialog({ toast }) {
           </div>
 
           {/* ── Ticket e Data ─────────────────────── */}
-          <Field label="Ticket Zammad" error={errors.ticket_zammad}>
+          <Field label="Ticket Zammad" error={errors.ticket_zammad} className="col-span-3">
             <Input
               placeholder="#12345"
               {...register("ticket_zammad", REQUIRED)}
             />
           </Field>
 
-          <Field label="Data de Abertura" error={errors.data_abertura}>
+          <Field label="Data de Abertura" error={errors.data_abertura} className="col-span-3">
             <Input
               type="datetime-local"
               {...register("data_abertura", { required: "Campo obrigatório." })}
@@ -386,7 +406,7 @@ export function BAFormDialog({ toast }) {
           </Field>
 
           {/* ── Classificação ─────────────────────── */}
-          <div className="flex flex-col gap-1.5">
+          <div className="col-span-3 flex flex-col gap-1.5">
             <Label>Prioridade <span className="text-destructive">*</span></Label>
             <Select value={prioridadeSel} onValueChange={handlePrioridadeChange}>
               <SelectTrigger><SelectValue /></SelectTrigger>
@@ -397,7 +417,7 @@ export function BAFormDialog({ toast }) {
             </Select>
           </div>
 
-          <div className="flex flex-col gap-1.5">
+          <div className="col-span-3 flex flex-col gap-1.5">
             <Label>Status <span className="text-destructive">*</span></Label>
             <Select value={statusSel} onValueChange={handleStatusChange}>
               <SelectTrigger><SelectValue /></SelectTrigger>
@@ -412,7 +432,7 @@ export function BAFormDialog({ toast }) {
           {/* Operadora de Transporte — condicional */}
           {precisaTransporte && (
             <>
-              <div className="flex flex-col gap-1.5 col-span-2 animate-in slide-in-from-top-2 duration-200">
+              <div className="col-span-6 flex flex-col gap-1.5 animate-in slide-in-from-top-2 duration-200">
                 <Label className="flex items-center gap-1.5 text-amber-400">
                   <Truck className="w-3.5 h-3.5" />
                   Operadora de Transporte <span className="text-destructive">*</span>
@@ -433,7 +453,7 @@ export function BAFormDialog({ toast }) {
               </div>
 
               {opTransporte === "Outra" && (
-                <div className="flex flex-col gap-1.5 col-span-2">
+                <div className="col-span-6 flex flex-col gap-1.5">
                   <Label className="flex items-center gap-1.5 text-amber-400">
                     <Truck className="w-3.5 h-3.5" />
                     Nome da Operadora <span className="text-destructive">*</span>
@@ -447,7 +467,7 @@ export function BAFormDialog({ toast }) {
                 </div>
               )}
 
-              <div className="flex flex-col gap-1.5 col-span-2">
+              <div className="col-span-6 flex flex-col gap-1.5">
                 <Label className="flex items-center gap-1.5 text-amber-400">
                   <Truck className="w-3.5 h-3.5" />
                   Nº BA Transporte <span className="text-destructive">*</span>
@@ -466,7 +486,7 @@ export function BAFormDialog({ toast }) {
           )}
 
           {/* CGP */}
-          <div className="flex flex-col gap-1.5 col-span-2">
+          <div className="col-span-6 flex flex-col gap-1.5">
             <Label>
               CGP <span className="text-destructive">*</span>
             </Label>
@@ -486,7 +506,7 @@ export function BAFormDialog({ toast }) {
           </div>
 
           {/* Descrição */}
-          <Field label="Descrição" error={errors.descricao} className="col-span-2">
+          <Field label="Descrição" error={errors.descricao} className="col-span-6">
             <Textarea
               placeholder="Descreva o problema, impacto, circuito afetado e ações iniciais tomadas…"
               rows={4}
@@ -495,7 +515,7 @@ export function BAFormDialog({ toast }) {
           </Field>
 
           {/* Rodapé */}
-          <div className="col-span-2 flex justify-end gap-2 pt-2 border-t border-border">
+          <div className="col-span-6 flex justify-end gap-2 pt-2 border-t border-border">
             <Button
               type="button"
               variant="outline"
@@ -505,7 +525,7 @@ export function BAFormDialog({ toast }) {
             </Button>
             <Button
               type="submit"
-              disabled={mutation.isPending || (precisaTransporte && (!opTransporte || !nrBATransporte.trim())) || !cgpSel || !portOrigem || !portDestino}
+              disabled={mutation.isPending || !tipoBaSel || !operadoraSel || (operadoraSel === "Outra" && !outraOperadora.trim()) || (precisaTransporte && (!opTransporte || !nrBATransporte.trim())) || !cgpSel || !portOrigem || !portDestino}
             >
               {mutation.isPending ? "Salvando…" : "Criar BA"}
             </Button>
